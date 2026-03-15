@@ -95,6 +95,20 @@ class SettingsViewModel(
         }
     }
 
+    fun createCalendar(email: String, summary: String) {
+        viewModelScope.launch {
+            val account = _uiState.value.accounts.find { it.email == email }
+            val accessToken = account?.accessToken ?: return@launch
+            try {
+                val newCalendar = repository.createCalendar(accessToken, summary)
+                fetchCalendars(email, accessToken)
+                updateAccount(account.copy(targetCalendarId = newCalendar.id))
+            } catch (e: Exception) {
+                Log.e("SettingsViewModel", "Failed to create calendar", e)
+            }
+        }
+    }
+
     fun setSetting(key: String, value: String) {
         viewModelScope.launch { repository.setSetting(key, value) }
     }

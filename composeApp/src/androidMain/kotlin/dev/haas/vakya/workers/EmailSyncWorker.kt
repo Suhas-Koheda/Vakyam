@@ -79,7 +79,8 @@ class EmailSyncWorker(
                 val extracted = parser.parseEmail(email.subject, email.snippet)
                 var actionResult = "No extraction"
                 if (extracted != null) {
-                    actionResult = decisionLayer.decideAndAct(dest.email, dest.accessToken!!, extracted)
+                    val calendarId = dest.targetCalendarId ?: "primary"
+                    actionResult = decisionLayer.decideAndAct(dest.email, dest.accessToken!!, calendarId, extracted)
                     Log.d(TAG, "Action for ${email.id} (Source: ${source.email}, Dest: ${dest.email}): $actionResult")
 
                     db.aiActionLogDao().insertLog(

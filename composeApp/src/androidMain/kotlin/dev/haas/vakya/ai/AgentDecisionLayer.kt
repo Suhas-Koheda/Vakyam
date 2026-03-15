@@ -16,6 +16,7 @@ class AgentDecisionLayer(
     suspend fun decideAndAct(
         accountEmail: String,
         accessToken: String,
+        calendarId: String,
         extracted: ExtractedEvent
     ): String {
         val authHeader = "Bearer $accessToken"
@@ -27,7 +28,7 @@ class AgentDecisionLayer(
         // Tool: list_calendar_events
         val existingEvents = try {
             calendarApi.listEvents(
-                calendarId = "primary",
+                calendarId = calendarId,
                 timeMin = getCurrentIsoTimestamp(),
                 timeMax = getFutureIsoTimestamp(7), // Check next 7 days
                 authHeader = authHeader
@@ -55,7 +56,7 @@ class AgentDecisionLayer(
                 end = CalendarTime(dateTime = endTime)
             )
             
-            calendarApi.createEvent(calendarId = "primary", event = newEvent, authHeader = authHeader)
+            calendarApi.createEvent(calendarId = calendarId, event = newEvent, authHeader = authHeader)
             "Created event: ${extracted.title}"
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create event", e)

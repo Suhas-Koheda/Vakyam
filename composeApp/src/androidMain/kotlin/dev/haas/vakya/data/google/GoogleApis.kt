@@ -39,7 +39,15 @@ interface CalendarApi {
         @Body event: CalendarEvent,
         @Header("Authorization") authHeader: String
     ): CalendarEvent
+
+    @POST("calendar/v3/calendars")
+    suspend fun createCalendar(
+        @Body request: CalendarRequest,
+        @Header("Authorization") authHeader: String
+    ): CalendarEntry
 }
+
+data class CalendarRequest(val summary: String)
 
 data class CalendarListResponse(
     val items: List<CalendarEntry>?

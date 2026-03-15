@@ -118,7 +118,8 @@ fun SettingsScreen(
                         availableCalendars = uiState.calendars[account.email] ?: emptyList(),
                         onUpdate = { viewModel.updateAccount(it) },
                         onRemove = { viewModel.removeAccount(it) },
-                        onAddAccount = onAddAccount
+                        onAddAccount = onAddAccount,
+                        onCreateCalendar = { viewModel.createCalendar(account.email, it) }
                     )
                 }
                 Button(
@@ -296,7 +297,8 @@ fun AccountItem(
     availableCalendars: List<dev.haas.vakya.data.google.CalendarEntry>,
     onUpdate: (AccountEntity) -> Unit,
     onRemove: (AccountEntity) -> Unit,
-    onAddAccount: () -> Unit
+    onAddAccount: () -> Unit,
+    onCreateCalendar: (String) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -322,14 +324,48 @@ fun AccountItem(
             }
 
             if (availableCalendars.isNotEmpty()) {
-                val selectedCalendar = availableCalendars.find { it.id == account.targetCalendarId }?.summary ?: account.targetCalendarId
+                val selectedCalendar = availableCalendars.find { it.id == account.targetCalendarId }?.summary ?: account.targetCalendarId ?: "Not Selected"
+                var showCreateDialog by remember { mutableStateOf(false) }
+
+                if (showCreateDialog) {
+                    var newCalName by remember { mutableStateOf("") }
+                    AlertDialog(
+                        onDismissRequest = { showCreateDialog = false },
+                        title = { Text("Create Calendar", fontWeight = FontWeight.Bold) },
+                        text = {
+                            OutlinedTextField(
+                                value = newCalName,
+                                onValueChange = { newCalName = it },
+                                label = { Text("Calendar Name") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                if (newCalName.isNotBlank()) {
+                                    onCreateCalendar(newCalName)
+                                }
+                                showCreateDialog = false
+                            }) { Text("Create") }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showCreateDialog = false }) { Text("Cancel") }
+                        }
+                    )
+                }
+
                 DropdownSetting(
                     label = "Target Calendar",
-                    options = availableCalendars.map { it.summary },
+                    options = availableCalendars.map { it.summary } + listOf("+ Create New Calendar"),
                     selected = selectedCalendar,
                     onSelected = { summary ->
-                        val calId = availableCalendars.find { it.summary == summary }?.id ?: "primary"
-                        onUpdate(account.copy(targetCalendarId = calId))
+                        if (summary == "+ Create New Calendar") {
+                            showCreateDialog = true
+                        } else {
+                            val calId = availableCalendars.find { it.summary == summary }?.id ?: "primary"
+                            onUpdate(account.copy(targetCalendarId = calId))
+                        }
                     }
                 )
             } else {

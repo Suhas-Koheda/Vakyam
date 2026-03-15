@@ -28,6 +28,19 @@ class SettingsRepository(
             val items = response.items ?: emptyList()
             Log.d("SettingsRepository", "Successfully fetched ${items.size} calendars")
             items
+        } catch (e: retrofit2.HttpException) {
+            val errorBody = e.response()?.errorBody()?.string()
+            Log.e("SettingsRepository", "CRITICAL: HTTP ${e.code()} - Failed to fetch calendars")
+            Log.e("SettingsRepository", "Error Body: $errorBody")
+            
+            aiActionLogDao.insertLog(
+                AiActionLogEntity(
+                    logType = "ERROR",
+                    subject = "Calendar 403 Forbidden",
+                    actionSummary = "Access denied for calendar list. Possible insufficient scopes. Details: $errorBody"
+                )
+            )
+            emptyList()
         } catch (e: Exception) {
             Log.e("SettingsRepository", "CRITICAL: Failed to fetch calendars", e)
             Log.e("SettingsRepository", "Error details: ${e.message}")
@@ -40,6 +53,10 @@ class SettingsRepository(
             )
             emptyList()
         }
+    }
+
+    suspend fun createCalendar(accessToken: String, summary: String): dev.haas.vakya.data.google.CalendarEntry {
+        return calendarApi.createCalendar(dev.haas.vakya.data.google.CalendarRequest(summary), "Bearer $accessToken")
     }
 
     fun getSetting(key: String): Flow<String?> = appSettingDao.getAllSettings().map { list ->

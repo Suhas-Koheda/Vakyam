@@ -123,21 +123,24 @@ class GoogleAuthManager(private val context: Context) {
                     val activity = context as? android.app.Activity
                     if (activity != null) {
                         Log.d("GoogleAuthManager", "Launching recovery intent for $email")
-                        // IMPORTANT: We should ideally use startActivityForResult, 
-                        // but for now we launch it and ask the user to tap again.
                         activity.startActivity(e.intent)
                     }
                     null
-                }
- catch (e: Exception) {
-                    println("DEBUG_AUTH_ERROR: Failed to get token for $email: ${e.message}")
-                    Log.e("GoogleAuthManager", "Failed to get token for $email: ${e.message}", e)
+                } catch (e: Exception) {
+                    val message = e.message ?: "Unknown error"
+                    println("DEBUG_AUTH_ERROR: Failed to get token for $email: $message")
+                    Log.e("GoogleAuthManager", "Failed to get token for $email: $message", e)
+                    
+                    if (message.contains("RECOVERABLE", ignoreCase = true)) {
+                        Log.d("GoogleAuthManager", "Recoverable error detected via message for $email")
+                    }
+
                     val db = AppContextHolder.database
                     db.aiActionLogDao().insertLog(
                         AiActionLogEntity(
                             logType = "ERROR",
                             subject = "Auth Token Error",
-                            actionSummary = "Failed to get token for $email: ${e.message}"
+                            actionSummary = "Failed to get token for $email: $message"
                         )
                     )
                     null
