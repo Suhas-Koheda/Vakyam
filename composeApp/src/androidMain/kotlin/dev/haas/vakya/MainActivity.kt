@@ -15,7 +15,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        AppContextHolder.initialize(this)
 
         scheduleEmailSync()
         dev.haas.vakya.widget.VakyaWidgetWorker.enqueue(this)

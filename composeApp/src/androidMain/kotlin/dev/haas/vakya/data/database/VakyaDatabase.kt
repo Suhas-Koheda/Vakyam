@@ -24,6 +24,7 @@ data class ProcessedEmailEntity(
 data class CalendarEventEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val title: String,
+    val description: String? = null,
     val startTime: Long,
     val endTime: Long? = null,
     val source: String, // email, LMS, manual

@@ -21,6 +21,7 @@ import java.time.format.DateTimeFormatter
 import androidx.glance.action.actionStartActivity
 import dev.haas.vakya.MainActivity
 import dev.haas.vakya.ui.theme.*
+import androidx.glance.action.clickable
 
 
 class VakyaWidget : GlanceAppWidget() {
@@ -41,10 +42,10 @@ class VakyaWidget : GlanceAppWidget() {
 
     @Composable
     private fun VakyaWidgetContent(today: List<CalendarEventEntity>, upcoming: List<CalendarEventEntity>) {
-        val backgroundColor = ColorProvider(light = White, dark = Void)
-        val onBackgroundColor = ColorProvider(light = Color.Black, dark = Mauve)
-        val secondaryTextColor = ColorProvider(light = Color.Gray, dark = Slate)
-        val accentColor = ColorProvider(light = Crimson, dark = Ember)
+        val backgroundColor = ColorProvider(White)
+        val onBackgroundColor = ColorProvider(Color.Black)
+        val secondaryTextColor = ColorProvider(Color.Gray)
+        val accentColor = ColorProvider(Crimson)
 
         Column(
             modifier = GlanceModifier
@@ -63,7 +64,7 @@ class VakyaWidget : GlanceAppWidget() {
                     style = TextStyle(
                         fontWeight = FontWeight.Bold, 
                         fontSize = 16.sp, 
-                        color = ColorProvider(light = Crimson, dark = Ember)
+                        color = ColorProvider(Crimson)
                     ),
                     modifier = GlanceModifier.defaultWeight()
                 )
@@ -72,7 +73,7 @@ class VakyaWidget : GlanceAppWidget() {
                 Box(
                     modifier = GlanceModifier
                         .padding(4.dp)
-                        .background(ColorProvider(light = Blush.copy(alpha = 0.2f), dark = Dusk))
+                        .background(ColorProvider(Blush.copy(alpha = 0.2f)))
                         .clickable(actionStartActivity<MainActivity>())
                 ) {
                     Text(
@@ -138,7 +139,7 @@ class VakyaWidget : GlanceAppWidget() {
             .format(DateTimeFormatter.ofPattern("hh:mm a"))
             
         Row(modifier = GlanceModifier.fillMaxWidth().padding(vertical = 4.dp)) {
-            Text(text = "•", style = TextStyle(color = ColorProvider(light = Violet, dark = Amethyst)))
+            Text(text = "•", style = TextStyle(color = ColorProvider(Violet)))
             Spacer(modifier = GlanceModifier.width(4.dp))
             Column {
                 Text(

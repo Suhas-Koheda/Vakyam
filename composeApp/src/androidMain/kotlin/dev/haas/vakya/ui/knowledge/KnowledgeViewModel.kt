@@ -10,7 +10,9 @@ import kotlinx.coroutines.launch
 
 class KnowledgeViewModel(
     private val repository: KnowledgeRepository,
-    private val gemmaParser: dev.haas.vakya.ai.GemmaParser
+    private val gemmaParser: dev.haas.vakya.ai.GemmaParser,
+    private val pendingEventRepository: dev.haas.vakya.data.repository.PendingEventRepository,
+    private val accountDao: dev.haas.vakya.data.database.AccountDao
 ) : ViewModel() {
 
     private val semanticSearchUseCase = SemanticSearchUseCase(gemmaParser)
@@ -103,5 +105,30 @@ class KnowledgeViewModel(
 
     fun clearSuggestedTags() {
         _suggestedTags.value = emptyList()
+    }
+
+    fun convertToTask(note: KnowledgeNoteEntity, onComplete: () -> Unit) {
+        viewModelScope.launch {
+            val extracted = gemmaParser.parseSentence(note.content) ?: return@launch
+            val accounts = accountDao.getAllAccountsList()
+            val targetEmail = accounts.firstOrNull()?.email ?: "Manual Entry"
+
+            val pendingEvent = dev.haas.vakya.data.database.pendingEvents.PendingEvent(
+                title = extracted.title ?: note.title,
+                description = extracted.description ?: note.content,
+                startTime = extracted.start_time ?: java.time.ZonedDateTime.now().toString(),
+                endTime = extracted.end_time,
+                deadline = extracted.deadline,
+                confidence = extracted.confidence.toFloat(),
+                emailId = "Note Conversion",
+                accountId = targetEmail,
+                status = "pending"
+            )
+            pendingEventRepository.insertEvent(pendingEvent)
+            
+            // Mark note as linked (optional)
+            repository.updateNote(note.copy(updatedAt = System.currentTimeMillis()))
+            onComplete()
+        }
     }
 }

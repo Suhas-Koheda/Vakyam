@@ -27,6 +27,7 @@ fun ReviewQueueScreen(viewModel: ReviewQueueViewModel) {
     val events by viewModel.pendingEvents.collectAsState()
 
     var eventToReject by remember { mutableStateOf<PendingEvent?>(null) }
+    var eventToEdit by remember { mutableStateOf<PendingEvent?>(null) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         Text(

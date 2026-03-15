@@ -1,6 +1,8 @@
 package dev.haas.vakya.ui.knowledge
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -10,12 +12,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun AddNoteScreen(
     viewModel: KnowledgeViewModel,
     onBack: () -> Unit
 ) {
+    var title by remember { mutableStateOf("") }
+    var content by remember { mutableStateOf("") }
+    var tags by remember { mutableStateOf("") }
     val suggestedTags by viewModel.suggestedTags.collectAsState()
     var isSuggestingTags by remember { mutableStateOf(false) }
 
@@ -112,7 +117,7 @@ fun AddNoteScreen(
                     enabled = !isSuggestingTags && content.isNotBlank()
                 ) {
                     if (isSuggestingTags) {
-                        CircularProgressIndicator(size = 24.dp)
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
                     } else {
                         Icon(Icons.Default.AutoAwesome, contentDescription = "Suggest Tags")
                     }

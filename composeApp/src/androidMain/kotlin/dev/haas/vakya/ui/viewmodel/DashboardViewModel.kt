@@ -114,15 +114,16 @@ class DashboardViewModel(
             if (extracted.type != "ignore") {
                 val pendingEvent = dev.haas.vakya.data.database.pendingEvents.PendingEvent(
                     title = extracted.title ?: "Untitled Event",
-                    description = extracted.description,
+                    description = extracted.description ?: "",
                     startTime = extracted.start_time ?: java.time.ZonedDateTime.now().toString(),
                     endTime = extracted.end_time,
-                    course = extracted.course,
-                    confidence = extracted.confidence,
+                    deadline = null,
+                    confidence = extracted.confidence.toFloat(),
                     emailId = "Manual Entry",
-                    type = extracted.type
+                    accountId = "Manual Entry",
+                    status = "pending"
                 )
-                pendingRepo.insertPendingEvent(pendingEvent)
+                pendingRepo.insertEvent(pendingEvent)
             }
         }
     }

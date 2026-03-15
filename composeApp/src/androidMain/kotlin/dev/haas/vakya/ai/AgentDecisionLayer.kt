@@ -29,8 +29,7 @@ class AgentDecisionLayer(
         aiLearningRuleDao?.let { dao ->
             val rules = dao.getAllRulesList()
             rules.forEach { rule ->
-                if (extracted.title.contains(rule.keyword, ignoreCase = true) || 
-                    (rule.senderDomain != null && extracted.metadata?.contains(rule.senderDomain) == true)) {
+                if (extracted.title.contains(rule.keyword, ignoreCase = true)) {
                     adjustedConfidence += rule.confidenceAdjustment
                 }
             }

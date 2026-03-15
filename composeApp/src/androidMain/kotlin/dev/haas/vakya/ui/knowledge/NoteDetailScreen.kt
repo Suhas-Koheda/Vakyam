@@ -3,6 +3,7 @@ package dev.haas.vakya.ui.knowledge
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Link
@@ -127,6 +128,37 @@ fun NoteDetailScreen(
                                 Icon(Icons.Default.Link, contentDescription = null)
                                 Text("Linked to Calendar Event #${currentNote.linkedEventId}")
                             }
+                        }
+                    } else {
+                        var isConverting by remember { mutableStateOf(false) }
+                        val snackbarHostState = remember { SnackbarHostState() }
+
+                        Box {
+                            Button(
+                                onClick = {
+                                    isConverting = true
+                                    viewModel.convertToTask(currentNote) {
+                                        isConverting = false
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar("Added to Review Queue")
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !isConverting,
+                                contentPadding = PaddingValues(12.dp)
+                            ) {
+                                if (isConverting) {
+                                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Converting...")
+                                } else {
+                                    Icon(Icons.Default.AutoAwesome, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Convert to Task with AI")
+                                }
+                            }
+                            SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(androidx.compose.ui.Alignment.BottomCenter))
                         }
                     }
                 }

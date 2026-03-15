@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -59,7 +60,7 @@ fun KnowledgeBaseScreen(
                     enabled = searchQuery.isNotBlank() && !isSearching
                 ) {
                     if (isSearching) {
-                        CircularProgressIndicator(size = 24.dp)
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
                     } else {
                         Icon(Icons.Default.AutoAwesome, contentDescription = "AI Search", tint = MaterialTheme.colorScheme.primary)
                     }

@@ -81,7 +81,7 @@ fun App() {
     val startupViewModel = remember { dev.haas.vakya.ui.viewmodel.StartupViewModel(db, context) }
     val dashboardViewModel = remember { DashboardViewModel(dashboardRepository, pendingEventRepository, gemmaParser, weeklySummaryUseCase, dailyBriefingUseCase, knowledgeRepository) }
     val settingsViewModel = remember { SettingsViewModel(settingsRepository) }
-    val knowledgeViewModel = remember { dev.haas.vakya.ui.knowledge.KnowledgeViewModel(knowledgeRepository, gemmaParser) }
+    val knowledgeViewModel = remember { dev.haas.vakya.ui.knowledge.KnowledgeViewModel(knowledgeRepository, gemmaParser, pendingEventRepository, db.accountDao()) }
     
     val reviewQueueViewModel = remember { 
         val notificationManager = dev.haas.vakya.notifications.VakyaNotificationManager(context)
@@ -171,17 +171,21 @@ fun App() {
                         }
                     }
                     Screen.AddTask -> {
-                        val accounts by settingsViewModel.accounts.collectAsState()
+                        val uiState by settingsViewModel.uiState.collectAsState()
                         dev.haas.vakya.ui.tasks.AddTaskScreen(
-                            availableEmails = accounts.map { it.email },
+                            availableEmails = uiState.accounts.map { it.email },
                             onSaveRequested = { event -> 
                                 scope.launch {
                                     pendingEventRepository.insertEvent(dev.haas.vakya.data.database.pendingEvents.PendingEvent(
                                         title = event.title,
+                                        description = event.description ?: "",
                                         startTime = java.time.Instant.ofEpochMilli(event.startTime).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME),
+                                        endTime = null,
+                                        deadline = null,
                                         emailId = event.accountEmail,
+                                        accountId = event.accountEmail,
                                         confidence = 1.0f,
-                                        type = "task"
+                                        status = "pending"
                                     ))
                                 }
                             },
