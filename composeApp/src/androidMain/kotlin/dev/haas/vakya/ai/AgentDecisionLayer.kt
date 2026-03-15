@@ -19,6 +19,7 @@ class AgentDecisionLayer(
         accessToken: String,
         calendarId: String,
         extracted: ExtractedEvent,
+        sender: String? = null,
         confidenceThreshold: Float = 0.7f
     ): ResultConfig {
         val authHeader = "Bearer $accessToken"
@@ -29,14 +30,18 @@ class AgentDecisionLayer(
         aiLearningRuleDao?.let { dao ->
             val rules = dao.getAllRulesList()
             rules.forEach { rule ->
-                if (extracted.title.contains(rule.keyword, ignoreCase = true)) {
+                val keywordMatch = extracted.title.contains(rule.keyword, ignoreCase = true)
+                val domain = sender?.substringAfterLast("@")
+                val domainMatch = rule.senderDomain == null || rule.senderDomain == domain
+                
+                if (keywordMatch && domainMatch) {
                     adjustedConfidence += rule.confidenceAdjustment
                 }
             }
         }
 
         if (extracted.type == "ignore" || adjustedConfidence < confidenceThreshold) {
-            return ResultConfig("Ignored: Adjusted confidence ($adjustedConfidence) or irrelevant type.", null, "", "")
+            return ResultConfig("Ignored", null, "", "")
         }
 
         // Tool: list_calendar_events
@@ -55,7 +60,7 @@ class AgentDecisionLayer(
         // Logic: avoid duplicates
         val duplicate = existingEvents.find { it.summary.contains(extracted.title, ignoreCase = true) }
         if (duplicate != null) {
-            return ResultConfig("Skipped: Duplicate event '${extracted.title}' found.", null, "", "")
+            return ResultConfig("Skipped: Duplicate found", null, "", "")
         }
 
         // The event is put in the review queue rather than immediately created.

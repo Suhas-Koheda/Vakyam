@@ -39,32 +39,16 @@ class EmailSyncWorker(
             ?.value?.toFloatOrNull() ?: 0.7f
 
         val accounts = db.accountDao().getAllAccountsList()
-        val gmailSource = db.appSettingDao().getSetting("gmail_source")?.value
-        val calendarDest = db.appSettingDao().getSetting("calendar_dest")?.value
-
-        if (gmailSource != null && calendarDest != null) {
-            // Priority: Specific mapping set in settings
-            val sourceAccount = accounts.find { it.email == gmailSource }
-            val destAccount = accounts.find { it.email == calendarDest }
-
-            if (sourceAccount?.accessToken != null && destAccount?.accessToken != null) {
-                Log.d(TAG, "Syncing specific mapping: $gmailSource -> $calendarDest")
-                syncBetweenAccounts(sourceAccount, destAccount, repository, parser, decisionLayer, db, notificationManager, confidenceThreshold)
-            }
-        }
-
-        // Also sync all other accounts that have Gmail enabled
+        
+        // Sync all accounts that have Gmail enabled
         for (account in accounts) {
-            // Skip the account if it was already processed as a source in the specific mapping above
-            // to avoid duplicate work, unless the user specifically wants it.
-            // For simplicity, we just sync any account that is enabled.
             if (!account.isGmailEnabled || account.accessToken == null) continue
             
-            // If this account IS the gmailSource, we skip it because it was already synced
-            if (account.email == gmailSource) continue
-
-            Log.d(TAG, "Syncing account: ${account.email} -> ${account.targetCalendarId}")
-            syncBetweenAccounts(account, account, repository, parser, decisionLayer, db, notificationManager, confidenceThreshold)
+            // Determine destination account. Default to self if not set or not found.
+            val destAccount = accounts.find { it.email == account.targetAccountEmail } ?: account
+            
+            Log.d(TAG, "Syncing account: ${account.email} -> ${destAccount.email} (${destAccount.targetCalendarId})")
+            syncBetweenAccounts(account, destAccount, repository, parser, decisionLayer, db, notificationManager, confidenceThreshold)
         }
 
         return Result.success()
@@ -94,7 +78,7 @@ class EmailSyncWorker(
                 if (extracted != null) {
                     eventsExtracted++
                     val calendarId = dest.targetCalendarId ?: "primary"
-                    val resultConfig = decisionLayer.decideAndAct(dest.email, dest.accessToken!!, calendarId, extracted, confidenceThreshold)
+                    val resultConfig = decisionLayer.decideAndAct(dest.email, dest.accessToken!!, calendarId, extracted, email.sender, confidenceThreshold)
                     val actionResult = resultConfig.actionMessage
                     Log.d(TAG, "Action for ${email.id} (Source: ${source.email}, Dest: ${dest.email}): $actionResult")
 
@@ -102,7 +86,7 @@ class EmailSyncWorker(
                         dev.haas.vakya.data.database.AiActionLogEntity(
                             emailId = email.id,
                             subject = email.subject,
-                            actionSummary = actionResult
+                            actionSummary = if (actionResult.contains("Ignored", ignoreCase = true)) "Ignored" else actionResult
                         )
                     )
 
@@ -112,12 +96,14 @@ class EmailSyncWorker(
                             dev.haas.vakya.data.database.pendingEvents.PendingEvent(
                                 emailId = email.id,
                                 title = extracted.title,
-                                description = "Course: ${extracted.course}\n${extracted.description}",
+                                description = "Context: ${extracted.context}\nRationale: ${extracted.rationale}\n${extracted.description}",
                                 startTime = resultConfig.startTimeIso,
                                 endTime = resultConfig.endTimeIso,
                                 deadline = extracted.deadline,
                                 confidence = extracted.confidence.toFloat(),
-                                accountId = dest.email
+                                sender = email.sender,
+                                accountId = dest.email,
+                                targetCalendarId = calendarId
                             )
                         )
                         notificationManager.notifyNewPendingEvent(extracted.title)

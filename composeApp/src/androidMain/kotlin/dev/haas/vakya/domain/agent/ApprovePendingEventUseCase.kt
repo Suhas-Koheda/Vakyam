@@ -26,7 +26,7 @@ class ApprovePendingEventUseCase(
             return
         }
 
-        val calendarId = account.targetCalendarId.ifEmpty { "primary" }
+        val calendarId = event.targetCalendarId ?: account.targetCalendarId.ifEmpty { "primary" }
         val authHeader = "Bearer ${account.accessToken}"
 
         // Check for duplicates

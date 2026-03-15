@@ -73,8 +73,8 @@ fun App() {
     val pendingEventRepository = remember { dev.haas.vakya.data.repository.PendingEventRepository(db.pendingEventDao()) }
 
     val startupViewModel = remember { dev.haas.vakya.ui.viewmodel.StartupViewModel(db, context) }
-    val dashboardViewModel = remember { DashboardViewModel(dashboardRepository, pendingEventRepository, gemmaParser, weeklySummaryUseCase, dailyBriefingUseCase, knowledgeRepository) }
-    val settingsViewModel = remember { SettingsViewModel(settingsRepository) }
+    val dashboardViewModel = remember { DashboardViewModel(dashboardRepository, pendingEventRepository, gemmaParser, weeklySummaryUseCase, dailyBriefingUseCase, knowledgeRepository, androidx.work.WorkManager.getInstance(context)) }
+    val settingsViewModel = remember { SettingsViewModel(settingsRepository, androidx.work.WorkManager.getInstance(context)) }
     val knowledgeViewModel = remember { dev.haas.vakya.ui.knowledge.KnowledgeViewModel(knowledgeRepository, gemmaParser, pendingEventRepository, db.accountDao()) }
     
     val reviewQueueViewModel = remember { 
@@ -171,12 +171,13 @@ fun App() {
                             onSaveRequested = { event -> 
                                 scope.launch {
                                     pendingEventRepository.insertEvent(dev.haas.vakya.data.database.pendingEvents.PendingEvent(
+                                        emailId = event.accountEmail,
                                         title = event.title,
                                         description = event.description ?: "",
                                         startTime = java.time.Instant.ofEpochMilli(event.startTime).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME),
                                         endTime = null,
                                         deadline = null,
-                                        emailId = event.accountEmail,
+                                        sender = "Manual Entry",
                                         accountId = event.accountEmail,
                                         confidence = 1.0f,
                                         status = "pending"

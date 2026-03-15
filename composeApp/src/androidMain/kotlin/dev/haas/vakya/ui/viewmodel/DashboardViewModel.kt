@@ -26,7 +26,8 @@ class DashboardViewModel(
     private val gemmaParser: dev.haas.vakya.ai.GemmaParser? = null,
     private val weeklySummaryUseCase: dev.haas.vakya.domain.ai.WeeklySummaryUseCase? = null,
     private val dailyBriefingUseCase: dev.haas.vakya.domain.ai.DailyBriefingUseCase? = null,
-    private val knowledgeRepository: dev.haas.vakya.data.repository.KnowledgeRepository? = null
+    private val knowledgeRepository: dev.haas.vakya.data.repository.KnowledgeRepository? = null,
+    private val workManager: androidx.work.WorkManager? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
@@ -113,18 +114,25 @@ class DashboardViewModel(
             val extracted = parser.parseSentence(sentence) ?: return@launch
             if (extracted.type != "ignore") {
                 val pendingEvent = dev.haas.vakya.data.database.pendingEvents.PendingEvent(
+                    emailId = "Manual Entry",
                     title = extracted.title ?: "Untitled Event",
                     description = extracted.description ?: "",
                     startTime = extracted.start_time ?: java.time.ZonedDateTime.now().toString(),
                     endTime = extracted.end_time,
                     deadline = null,
                     confidence = extracted.confidence.toFloat(),
-                    emailId = "Manual Entry",
+                    sender = "Manual Entry",
                     accountId = "Manual Entry",
                     status = "pending"
                 )
                 pendingRepo.insertEvent(pendingEvent)
             }
+        }
+    }
+
+    fun syncEmails() {
+        workManager?.let { manager ->
+            dev.haas.vakya.workers.SyncScheduler.scheduleImmediateSync(manager) 
         }
     }
 }

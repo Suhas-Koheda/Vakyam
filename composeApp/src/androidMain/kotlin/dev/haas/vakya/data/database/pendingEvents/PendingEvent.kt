@@ -9,11 +9,13 @@ data class PendingEvent(
     val emailId: String,
     val title: String,
     val description: String,
-    val startTime: String, // Stored as ISO string or Long depending on how others are usually stored; the others are Long. I will use Long. Let's look at the prompt.
+    val startTime: String,
     val endTime: String?,
     val deadline: String?,
     val confidence: Float,
-    val accountId: String,
+    val sender: String?, // The original sender of the email
+    val accountId: String, // Destination account email
+    val targetCalendarId: String? = null, // Destination calendar ID
     val status: String = "pending", // pending, approved, rejected
     val createdAt: Long = System.currentTimeMillis()
 )

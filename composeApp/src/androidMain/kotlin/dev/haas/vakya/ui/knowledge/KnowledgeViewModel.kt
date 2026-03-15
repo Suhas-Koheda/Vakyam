@@ -138,13 +138,14 @@ class KnowledgeViewModel(
             val targetEmail = accounts.firstOrNull()?.email ?: "Manual Entry"
 
             val pendingEvent = dev.haas.vakya.data.database.pendingEvents.PendingEvent(
+                emailId = "Note Conversion",
                 title = extracted.title ?: note.title,
                 description = extracted.description ?: note.content,
                 startTime = extracted.start_time ?: java.time.ZonedDateTime.now().toString(),
                 endTime = extracted.end_time,
                 deadline = extracted.deadline,
                 confidence = extracted.confidence.toFloat(),
-                emailId = "Note Conversion",
+                sender = "Note Conversion",
                 accountId = targetEmail,
                 status = "pending"
             )

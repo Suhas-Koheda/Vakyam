@@ -18,15 +18,14 @@ data class SettingsUiState(
     val notifyOnIgnore: Boolean = false,
     val dailySummary: Boolean = true,
     val localAiOnly: Boolean = true,
-    val gmailSourceEmail: String? = null,
-    val calendarDestEmail: String? = null,
     val isSigningIn: Boolean = false,
     val showConsentSheet: Boolean = false
 )
 
 
 class SettingsViewModel(
-    private val repository: SettingsRepository
+    private val repository: SettingsRepository,
+    private val workManager: androidx.work.WorkManager? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -56,9 +55,7 @@ class SettingsViewModel(
                         notifyOnAdd = settingsMap[KEY_NOTIFY_ADD]?.toBoolean() ?: true,
                         notifyOnIgnore = settingsMap[KEY_NOTIFY_IGNORE]?.toBoolean() ?: false,
                         dailySummary = settingsMap[KEY_DAILY_SUMMARY]?.toBoolean() ?: true,
-                        localAiOnly = settingsMap[KEY_LOCAL_AI_ONLY]?.toBoolean() ?: true,
-                        gmailSourceEmail = settingsMap[KEY_GMAIL_SOURCE],
-                        calendarDestEmail = settingsMap[KEY_CALENDAR_DEST]
+                        localAiOnly = settingsMap[KEY_LOCAL_AI_ONLY]?.toBoolean() ?: true
                     )
                 }
             }
@@ -110,7 +107,20 @@ class SettingsViewModel(
     }
 
     fun setSetting(key: String, value: String) {
-        viewModelScope.launch { repository.setSetting(key, value) }
+        viewModelScope.launch { 
+            repository.setSetting(key, value)
+            
+            if (key == KEY_SCAN_INTERVAL && workManager != null) {
+                val intervalMinutes = when {
+                    value.contains("15") -> 15L
+                    value.contains("30") -> 30L
+                    value.contains("4") -> 240L
+                    value.contains("1") -> 60L
+                    else -> 30L
+                }
+                dev.haas.vakya.workers.SyncScheduler.scheduleSync(workManager, intervalMinutes)
+            }
+        }
     }
 
     companion object {
@@ -121,8 +131,6 @@ class SettingsViewModel(
         const val KEY_NOTIFY_IGNORE = "notify_ignore"
         const val KEY_DAILY_SUMMARY = "daily_summary"
         const val KEY_LOCAL_AI_ONLY = "local_ai_only"
-        const val KEY_GMAIL_SOURCE = "gmail_source"
-        const val KEY_CALENDAR_DEST = "calendar_dest"
     }
 }
 

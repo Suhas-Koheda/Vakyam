@@ -20,7 +20,7 @@ fun AddTaskScreen(
 ) {
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
-    var courseTag by remember { mutableStateOf("") }
+    var contextTag by remember { mutableStateOf("") }
     var selectedEmail by remember { mutableStateOf(availableEmails.firstOrNull() ?: "") }
     
     val calendar = remember { Calendar.getInstance() }
@@ -55,7 +55,7 @@ fun AddTaskScreen(
                             finalCalendar.set(Calendar.MINUTE, selectedMinute)
                             
                             val event = CalendarEventEntity(
-                                title = if (courseTag.isNotEmpty()) "[$courseTag] $title" else title,
+                                title = if (contextTag.isNotEmpty()) "[$contextTag] $title" else title,
                                 startTime = finalCalendar.timeInMillis,
                                 source = "manual",
                                 accountEmail = selectedEmail,
@@ -87,11 +87,11 @@ fun AddTaskScreen(
             )
 
             OutlinedTextField(
-                value = courseTag,
-                onValueChange = { courseTag = it },
-                label = { Text("Course Tag (Optional)") },
+                value = contextTag,
+                onValueChange = { contextTag = it },
+                label = { Text("Context/Tag (Optional)") },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("e.g. CS101") }
+                placeholder = { Text("e.g. Work, Personal, CS101") }
             )
 
             OutlinedTextField(

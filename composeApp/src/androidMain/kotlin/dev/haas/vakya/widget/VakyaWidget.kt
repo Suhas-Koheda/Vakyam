@@ -24,6 +24,8 @@ import dev.haas.vakya.ui.theme.*
 import androidx.glance.action.clickable
 
 
+import dev.haas.vakya.R
+
 class VakyaWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
@@ -42,10 +44,10 @@ class VakyaWidget : GlanceAppWidget() {
 
     @Composable
     private fun VakyaWidgetContent(today: List<CalendarEventEntity>, upcoming: List<CalendarEventEntity>) {
-        val backgroundColor = ColorProvider(White)
-        val onBackgroundColor = ColorProvider(Color.Black)
-        val secondaryTextColor = ColorProvider(Color.Gray)
-        val accentColor = ColorProvider(Crimson)
+        val backgroundColor = ColorProvider(R.color.widget_bg)
+        val onBackgroundColor = ColorProvider(R.color.widget_on_bg)
+        val secondaryTextColor = ColorProvider(R.color.widget_secondary_text)
+        val accentColor = ColorProvider(R.color.widget_accent)
 
         Column(
             modifier = GlanceModifier
@@ -64,7 +66,7 @@ class VakyaWidget : GlanceAppWidget() {
                     style = TextStyle(
                         fontWeight = FontWeight.Bold, 
                         fontSize = 16.sp, 
-                        color = ColorProvider(Crimson)
+                        color = accentColor
                     ),
                     modifier = GlanceModifier.defaultWeight()
                 )
@@ -73,8 +75,8 @@ class VakyaWidget : GlanceAppWidget() {
                 Box(
                     modifier = GlanceModifier
                         .size(36.dp)
-                        .background(ColorProvider(Crimson))
-                        .cornerRadius(18)
+                        .background(accentColor)
+                        .cornerRadius(18.dp)
                         .clickable(actionStartActivity<MainActivity>()),
                     contentAlignment = Alignment.Center
                 ) {
@@ -82,9 +84,10 @@ class VakyaWidget : GlanceAppWidget() {
                         text = "+",
                         style = TextStyle(
                             fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp,
+                            fontSize = 18.sp,
                             color = ColorProvider(White)
-                        )
+                        ),
+                        modifier = GlanceModifier.padding(bottom = 2.dp)
                     )
                 }
             }
@@ -141,7 +144,8 @@ class VakyaWidget : GlanceAppWidget() {
             .format(DateTimeFormatter.ofPattern("hh:mm a"))
             
         Row(modifier = GlanceModifier.fillMaxWidth().padding(vertical = 4.dp)) {
-            Text(text = "•", style = TextStyle(color = ColorProvider(Violet)))
+            val bulletColor = ColorProvider(R.color.widget_bullet)
+            Text(text = "•", style = TextStyle(color = bulletColor))
             Spacer(modifier = GlanceModifier.width(4.dp))
             Column {
                 Text(

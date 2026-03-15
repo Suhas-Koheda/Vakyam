@@ -16,6 +16,7 @@ class GoogleAccountManager(private val accountDao: AccountDao) {
             displayName = displayName,
             isGmailEnabled = true,
             targetCalendarId = "primary",
+            targetAccountEmail = email,
             accessToken = accessToken
         )
         accountDao.insertAccount(account)

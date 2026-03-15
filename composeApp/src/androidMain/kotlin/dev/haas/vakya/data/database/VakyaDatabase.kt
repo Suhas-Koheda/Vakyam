@@ -9,6 +9,7 @@ data class AccountEntity(
     val displayName: String?,
     val isGmailEnabled: Boolean,
     val targetCalendarId: String,
+    val targetAccountEmail: String, // Destination account for events
     val accessToken: String? = null,
     val refreshToken: String? = null
 )
@@ -140,7 +141,7 @@ interface ProcessedEmailDao {
     dev.haas.vakya.data.database.pendingEvents.PendingEvent::class,
     KnowledgeNoteEntity::class,
     AiLearningRuleEntity::class
-], version = 7, exportSchema = false)
+], version = 10, exportSchema = false)
 abstract class VakyaDatabase : RoomDatabase() {
     abstract fun accountDao(): AccountDao
     abstract fun calendarEventDao(): CalendarEventDao

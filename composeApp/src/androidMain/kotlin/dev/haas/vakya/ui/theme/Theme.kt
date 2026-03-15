@@ -13,7 +13,7 @@ import vakya.composeapp.generated.resources.Res
 import vakya.composeapp.generated.resources.jetbrainsmono_regular
 import vakya.composeapp.generated.resources.jetbrainsmono_bold
 
-private val LightColorScheme = lightColorScheme(
+internal val LightColorScheme = lightColorScheme(
     primary = Crimson,
     onPrimary = White,
     primaryContainer = Blush,
@@ -33,7 +33,7 @@ private val LightColorScheme = lightColorScheme(
     outline = Slate
 )
 
-private val DarkColorScheme = darkColorScheme(
+internal val DarkColorScheme = darkColorScheme(
     primary = Ember,
     onPrimary = Void,
     primaryContainer = Dusk,

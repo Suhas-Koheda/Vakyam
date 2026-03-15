@@ -158,11 +158,12 @@ fun SettingsScreen(
                         ) {
                             AccountItem(
                                 account = account,
-                                availableCalendars = uiState.calendars[account.email] ?: emptyList(),
+                                allAccounts = uiState.accounts,
+                                allCalendars = uiState.calendars,
                                 onUpdate = { viewModel.updateAccount(it) },
                                 onRemove = { viewModel.removeAccount(it) },
                                 onAddAccount = onAddAccount,
-                                onCreateCalendar = { viewModel.createCalendar(account.email, it) }
+                                onCreateCalendar = { email, summary -> viewModel.createCalendar(email, summary) }
                             )
                         }
                     }
@@ -199,49 +200,30 @@ fun SettingsScreen(
             }
 
 
-            // Email → Calendar Routing
-            SettingsSection("Email → Calendar Routing", Icons.Default.SwapHoriz) {
-                Text(
-                    "Route Gmail from one account into another account's calendar. Useful when you read work emails on a personal account.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-                
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Box(modifier = Modifier.weight(1f)) {
-                        DropdownSetting(
-                            label = "Source Gmail",
-                            options = listOf("None") + uiState.accounts.map { it.email },
-                            selected = uiState.gmailSourceEmail ?: "None",
-                            onSelected = { 
-                                if (it == "None") viewModel.setSetting(SettingsViewModel.KEY_GMAIL_SOURCE, "")
-                                else viewModel.setSetting(SettingsViewModel.KEY_GMAIL_SOURCE, it) 
-                            }
-                        )
-                    }
-                    Box(modifier = Modifier.weight(1f)) {
-                        DropdownSetting(
-                            label = "Dest. Calendar",
-                            options = listOf("None") + uiState.accounts.map { it.email },
-                            selected = uiState.calendarDestEmail ?: "None",
-                            onSelected = { 
-                                if (it == "None") viewModel.setSetting(SettingsViewModel.KEY_CALENDAR_DEST, "")
-                                else viewModel.setSetting(SettingsViewModel.KEY_CALENDAR_DEST, it) 
-                            }
-                        )
-                    }
-                }
-            }
 
             // Email Parsing Settings
 
-            SettingsSection("Email Parsing", Icons.Default.Email) {
+            SettingsSection("Sync & Background", Icons.Default.Sync) {
+                Text(
+                    "Vakya runs in the background to analyze new emails. Shorter intervals use more battery but keep your schedule more up-to-date.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+
                 DropdownSetting(
-                    label = "Scanning Interval",
-                    options = listOf("15 minutes", "30 minutes", "1 hour"),
+                    label = "Scanning Frequency",
+                    options = listOf("15 minutes", "30 minutes", "1 hour", "4 hours"),
                     selected = uiState.scanningInterval,
                     onSelected = { viewModel.setSetting(SettingsViewModel.KEY_SCAN_INTERVAL, it) }
+                )
+                
+                Text(
+                    "Syncing more than every 15 minutes is limited by Android to preserve battery life. Google API quotas are high enough for personal use.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(top = 4.dp)
                 )
             }
 
@@ -361,11 +343,12 @@ fun SettingsSection(title: String, icon: androidx.compose.ui.graphics.vector.Ima
 @Composable
 fun AccountItem(
     account: AccountEntity,
-    availableCalendars: List<dev.haas.vakya.data.google.CalendarEntry>,
+    allAccounts: List<AccountEntity>,
+    allCalendars: Map<String, List<dev.haas.vakya.data.google.CalendarEntry>>,
     onUpdate: (AccountEntity) -> Unit,
     onRemove: (AccountEntity) -> Unit,
     onAddAccount: () -> Unit,
-    onCreateCalendar: (String) -> Unit
+    onCreateCalendar: (String, String) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -425,78 +408,98 @@ fun AccountItem(
                 }
             }
 
-            if (availableCalendars.isNotEmpty()) {
-                val selectedCalendar = availableCalendars.find { it.id == account.targetCalendarId }?.summary ?: account.targetCalendarId ?: "Not Selected"
-                var showCreateDialog by remember { mutableStateOf(false) }
-
-                if (showCreateDialog) {
-                    var newCalName by remember { mutableStateOf("") }
-                    AlertDialog(
-                        onDismissRequest = { showCreateDialog = false },
-                        title = { Text("Create Calendar", fontWeight = FontWeight.Bold) },
-                        text = {
-                            OutlinedTextField(
-                                value = newCalName,
-                                onValueChange = { newCalName = it },
-                                label = { Text("Calendar Name") },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        },
-                        confirmButton = {
-                            TextButton(onClick = {
-                                if (newCalName.isNotBlank()) {
-                                    onCreateCalendar(newCalName)
-                                }
-                                showCreateDialog = false
-                            }) { Text("Create") }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { showCreateDialog = false }) { Text("Cancel") }
+            if (account.isGmailEnabled) {
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                // Destination Account selection (if multiple accounts exist)
+                if (allAccounts.size > 1) {
+                    DropdownSetting(
+                        label = "Sync to Account",
+                        options = allAccounts.map { it.email },
+                        selected = account.targetAccountEmail,
+                        onSelected = { newDest ->
+                            onUpdate(account.copy(targetAccountEmail = newDest))
                         }
                     )
+                    Spacer(modifier = Modifier.height(12.dp))
                 }
 
-                DropdownSetting(
-                    label = "Target Calendar",
-                    options = availableCalendars.map { it.summary } + listOf("+ Create New Calendar"),
-                    selected = selectedCalendar,
-                    onSelected = { summary ->
-                        if (summary == "+ Create New Calendar") {
-                            showCreateDialog = true
-                        } else {
-                            val calId = availableCalendars.find { it.summary == summary }?.id ?: "primary"
-                            onUpdate(account.copy(targetCalendarId = calId))
-                        }
+                val destAccountEmail = account.targetAccountEmail
+                val availableCalendars = allCalendars[destAccountEmail] ?: emptyList()
+
+                if (availableCalendars.isNotEmpty()) {
+                    val selectedCalendar = availableCalendars.find { it.id == account.targetCalendarId }?.summary ?: account.targetCalendarId ?: "Not Selected"
+                    var showCreateDialog by remember { mutableStateOf(false) }
+
+                    if (showCreateDialog) {
+                        var newCalName by remember { mutableStateOf("") }
+                        AlertDialog(
+                            onDismissRequest = { showCreateDialog = false },
+                            title = { Text("Create Calendar", fontWeight = FontWeight.Bold) },
+                            text = {
+                                OutlinedTextField(
+                                    value = newCalName,
+                                    onValueChange = { newCalName = it },
+                                    label = { Text("Calendar Name") },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            },
+                            confirmButton = {
+                                TextButton(onClick = {
+                                    if (newCalName.isNotBlank()) {
+                                        onCreateCalendar(destAccountEmail, newCalName)
+                                    }
+                                    showCreateDialog = false
+                                }) { Text("Create") }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showCreateDialog = false }) { Text("Cancel") }
+                            }
+                        )
                     }
-                )
-            } else {
-                Spacer(modifier = Modifier.height(8.dp))
-                Surface(
-                    color = if (account.accessToken == null) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant,
-                    shape = MaterialTheme.shapes.small,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.padding(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+
+                    DropdownSetting(
+                        label = "Target Calendar",
+                        options = availableCalendars.map { it.summary } + listOf("+ Create New Calendar"),
+                        selected = selectedCalendar,
+                        onSelected = { summary ->
+                            if (summary == "+ Create New Calendar") {
+                                showCreateDialog = true
+                            } else {
+                                val calId = availableCalendars.find { it.summary == summary }?.id ?: "primary"
+                                onUpdate(account.copy(targetCalendarId = calId))
+                            }
+                        }
+                    )
+                } else {
+                    val destAccount = allAccounts.find { it.email == destAccountEmail }
+                    Surface(
+                        color = if (destAccount?.accessToken == null) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant,
+                        shape = MaterialTheme.shapes.small,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(
-                            if (account.accessToken == null) Icons.Default.Warning else Icons.Default.Info,
-                            contentDescription = null,
-                            tint = if (account.accessToken == null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = if (account.accessToken == null) "Permission required for Calendar" else "No calendars found",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (account.accessToken == null) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        if (account.accessToken == null) {
-                            Spacer(modifier = Modifier.weight(1f))
-                            TextButton(onClick = onAddAccount, contentPadding = PaddingValues(0.dp)) {
-                                Text("AUTHORIZE", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                        Row(
+                            modifier = Modifier.padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                if (destAccount?.accessToken == null) Icons.Default.Warning else Icons.Default.Info,
+                                contentDescription = null,
+                                tint = if (destAccount?.accessToken == null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (destAccount?.accessToken == null) "Permission required for Destination" else "No calendars found",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (destAccount?.accessToken == null) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (destAccount?.accessToken == null) {
+                                Spacer(modifier = Modifier.weight(1f))
+                                TextButton(onClick = onAddAccount, contentPadding = PaddingValues(0.dp)) {
+                                    Text("AUTHORIZE", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }

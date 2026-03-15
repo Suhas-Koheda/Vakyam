@@ -19,10 +19,16 @@ object AppContextHolder {
         dev.haas.vakya.ai.GemmaParser()
     }
 
+    private val moshi: com.squareup.moshi.Moshi by lazy {
+        com.squareup.moshi.Moshi.Builder()
+            .add(com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory())
+            .build()
+    }
+
     private val retrofit: retrofit2.Retrofit by lazy {
         retrofit2.Retrofit.Builder()
             .baseUrl("https://www.googleapis.com/")
-            .addConverterFactory(retrofit2.converter.moshi.MoshiConverterFactory.create())
+            .addConverterFactory(retrofit2.converter.moshi.MoshiConverterFactory.create(moshi))
             .build()
     }
 

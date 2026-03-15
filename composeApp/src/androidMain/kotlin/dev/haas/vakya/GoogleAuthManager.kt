@@ -156,6 +156,7 @@ class GoogleAuthManager(private val context: Context) {
                         displayName = userData.displayName,
                         isGmailEnabled = true,
                         targetCalendarId = "primary",
+                        targetAccountEmail = email,
                         accessToken = if (accessToken?.startsWith("ya29") == true) accessToken else null
                     )
                 )

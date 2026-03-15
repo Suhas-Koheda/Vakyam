@@ -9,6 +9,10 @@ import androidx.compose.ui.tooling.preview.Preview
 
 import androidx.work.*
 import dev.haas.vakya.workers.EmailSyncWorker
+import dev.haas.vakya.workers.SyncScheduler
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
@@ -16,7 +20,23 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
-        scheduleEmailSync()
+        MainScope().launch {
+            val db = AppContextHolder.database
+            val intervalPref = db.appSettingDao().getAllSettings().first()
+                .find { it.key == dev.haas.vakya.ui.viewmodel.SettingsViewModel.KEY_SCAN_INTERVAL }
+                ?.value ?: "30 minutes"
+            
+            val intervalMinutes = when {
+                intervalPref.contains("15") -> 15L
+                intervalPref.contains("30") -> 30L
+                intervalPref.contains("4") -> 240L
+                intervalPref.contains("1") -> 60L
+                else -> 30L
+            }
+            
+            SyncScheduler.scheduleSync(androidx.work.WorkManager.getInstance(this@MainActivity), intervalMinutes)
+        }
+        
         dev.haas.vakya.widget.VakyaWidgetWorker.enqueue(this)
 
         setContent {
@@ -24,21 +44,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun scheduleEmailSync() {
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
-
-        val syncRequest = PeriodicWorkRequestBuilder<EmailSyncWorker>(15, TimeUnit.MINUTES)
-            .setConstraints(constraints)
-            .build()
-
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            "EmailSyncWork",
-            ExistingPeriodicWorkPolicy.KEEP,
-            syncRequest
-        )
-    }
 }
 
 

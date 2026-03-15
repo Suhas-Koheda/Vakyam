@@ -13,6 +13,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.BorderStroke
 import dev.haas.vakya.data.database.AiActionLogEntity
 import dev.haas.vakya.data.database.CalendarEventEntity
 import dev.haas.vakya.ui.viewmodel.DashboardViewModel
@@ -74,13 +78,34 @@ fun DashboardScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Vakya Dashboard", fontWeight = FontWeight.Bold) },
+                title = { 
+                    Column {
+                        Text("Vakya", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+                        Text("Personal Assistant", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                },
                 actions = {
+                    IconButton(onClick = { viewModel.syncEmails() }) {
+                        Icon(Icons.Default.Sync, contentDescription = "Sync Emails")
+                    }
                     IconButton(onClick = onOpenDebug) {
                         Icon(Icons.Default.BugReport, contentDescription = "Debug")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.primary
+                )
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { showCreateDialog = true },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            ) {
+                Icon(Icons.Default.AutoAwesome, contentDescription = "AI Action")
+            }
         }
     ) { padding ->
         LazyColumn(
@@ -91,57 +116,55 @@ fun DashboardScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Quick Actions
+            // Quick Shortcuts
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    ElevatedButton(
+                    ActionChip(
+                        icon = Icons.Default.AddTask,
+                        label = "Task",
                         onClick = onNavigateToAddTask,
                         modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.AddTask, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Add Task")
-                    }
-                    ElevatedButton(
+                    )
+                    ActionChip(
+                        icon = Icons.Default.NoteAdd,
+                        label = "Note",
                         onClick = onNavigateToAddNote,
                         modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.NoteAdd, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Add Note")
-                    }
+                    )
+                    ActionChip(
+                        icon = Icons.Default.Search,
+                        label = "Explore",
+                        onClick = onNavigateToKnowledge,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
 
-            // Summaries Section
-            // Summaries Section
+            // AI Insight Cards
             item {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Card(
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), 
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    InsightCard(
                         modifier = Modifier.weight(1f),
                         onClick = { viewModel.generateDailyBriefing() },
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.WbSunny, contentDescription = null, tint = Color(0xFFFFB300), modifier = Modifier.size(32.dp))
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("Daily Briefing", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                    Card(
+                        icon = Icons.Default.WbSunny,
+                        title = "Daily Briefing",
+                        subtitle = "Morning update",
+                        color = Color(0xFFFFB300)
+                    )
+                    InsightCard(
                         modifier = Modifier.weight(1f),
                         onClick = { viewModel.generateWeeklySummary() },
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f))
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("Weekly Insight", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                        }
-                    }
+                        icon = Icons.Default.AutoAwesome,
+                        title = "Weekly Insight",
+                        subtitle = "Performance wrap",
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
 
@@ -202,12 +225,14 @@ fun DashboardScreen(
             }
             
             if (uiState.recentActions.isEmpty()) {
-                item { EmptyState("AI is monitoring your accounts...") }
+                item { EmptyState("Cognitive core initialized. Waiting for input.") }
             } else {
                 items(uiState.recentActions, key = { it.id }) { action ->
                     AiActionItem(action)
                 }
             }
+            
+            item { Spacer(modifier = Modifier.height(32.dp)) }
         }
     }
 }
@@ -215,17 +240,25 @@ fun DashboardScreen(
 @Composable
 fun SectionHeader(title: String, color: Color) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 24.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(modifier = Modifier.size(8.dp).background(color, shape = MaterialTheme.shapes.small))
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = title,
-            style = MaterialTheme.typography.labelLarge,
-            color = color,
-            fontWeight = FontWeight.Bold
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelMedium,
+                color = color,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 1.2.sp
+            )
+            Box(
+                modifier = Modifier
+                    .padding(top = 4.dp)
+                    .width(40.dp)
+                    .height(3.dp)
+                    .background(color.copy(alpha = 0.6f), shape = MaterialTheme.shapes.small)
+            )
+        }
     }
 }
 
@@ -250,8 +283,12 @@ fun EventCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -331,12 +368,77 @@ fun AiActionItem(action: AiActionLogEntity) {
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Medium
                 )
-                Text(
-                    text = "Action: ${action.actionSummary}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                )
+                if (action.actionSummary != "Ignored") {
+                    Text(
+                        text = "Action: ${action.actionSummary}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
             }
+        }
+    }
+}
+
+
+@Composable
+fun InsightCard(
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    color: Color
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = MaterialTheme.shapes.extraLarge,
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, color.copy(alpha = 0.2f))
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.Start
+        ) {
+            Icon(
+                icon, 
+                contentDescription = null, 
+                tint = color, 
+                modifier = Modifier
+                    .size(28.dp)
+                    .background(color.copy(alpha = 0.1f), shape = androidx.compose.foundation.shape.CircleShape)
+                    .padding(4.dp)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.ExtraBold)
+            Text(subtitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+fun ActionChip(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.15f),
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+    ) {
+        Row(
+            modifier = Modifier.padding(vertical = 14.dp, horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(label, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -344,10 +446,23 @@ fun AiActionItem(action: AiActionLogEntity) {
 @Composable
 fun EmptyState(message: String) {
     Box(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                Icons.Default.Inbox, 
+                contentDescription = null, 
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.outlineVariant
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                message, 
+                style = MaterialTheme.typography.bodyMedium, 
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+            )
+        }
     }
 }
 
