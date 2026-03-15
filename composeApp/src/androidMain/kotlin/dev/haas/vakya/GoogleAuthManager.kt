@@ -15,6 +15,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import dev.haas.vakya.data.database.AccountEntity
 import com.google.android.gms.auth.GoogleAuthUtil
+import android.util.Log
+import dev.haas.vakya.data.database.AiActionLogEntity
 
 
 class GoogleAuthManager(private val context: Context) {
@@ -112,9 +114,32 @@ class GoogleAuthManager(private val context: Context) {
             val accessToken = withContext(Dispatchers.IO) {
                 try {
                     val scopes = "oauth2:https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events"
-                    GoogleAuthUtil.getToken(context, email, scopes)
-                } catch (e: Exception) {
-                    e.printStackTrace()
+                    val token = GoogleAuthUtil.getToken(context, email, scopes)
+                    Log.d("GoogleAuthManager", "Token retrieved successfully: ${token.take(10)}...")
+                    token
+                } catch (e: com.google.android.gms.auth.UserRecoverableAuthException) {
+                    Log.e("GoogleAuthManager", "User consent required (NEED_REMOTE_CONSENT) for $email", e)
+                    
+                    val activity = context as? android.app.Activity
+                    if (activity != null) {
+                        Log.d("GoogleAuthManager", "Launching recovery intent for $email")
+                        // IMPORTANT: We should ideally use startActivityForResult, 
+                        // but for now we launch it and ask the user to tap again.
+                        activity.startActivity(e.intent)
+                    }
+                    null
+                }
+ catch (e: Exception) {
+                    println("DEBUG_AUTH_ERROR: Failed to get token for $email: ${e.message}")
+                    Log.e("GoogleAuthManager", "Failed to get token for $email: ${e.message}", e)
+                    val db = AppContextHolder.database
+                    db.aiActionLogDao().insertLog(
+                        AiActionLogEntity(
+                            logType = "ERROR",
+                            subject = "Auth Token Error",
+                            actionSummary = "Failed to get token for $email: ${e.message}"
+                        )
+                    )
                     null
                 }
             }
@@ -128,9 +153,17 @@ class GoogleAuthManager(private val context: Context) {
                         displayName = userData.displayName,
                         isGmailEnabled = true,
                         targetCalendarId = "primary",
-                        accessToken = accessToken ?: googleIdTokenCredential.idToken 
+                        accessToken = if (accessToken?.startsWith("ya29") == true) accessToken else null
                     )
                 )
+                db.aiActionLogDao().insertLog(
+                    AiActionLogEntity(
+                        logType = "AUTH",
+                        subject = "Account Added",
+                        actionSummary = "Added $email. Access Token retrieved: ${accessToken != null}"
+                    )
+                )
+                Log.d("GoogleAuthManager", "Account added: $email, Token success: ${accessToken != null}")
             }
         }
     }

@@ -1,6 +1,11 @@
 package dev.haas.vakya.ui.debug
 
+import android.util.Log
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -18,6 +23,7 @@ import kotlinx.coroutines.flow.Flow
 @Composable
 fun DebugScreen(
     logsFlow: Flow<List<AiActionLogEntity>>,
+    onClear: () -> Unit,
     onBack: () -> Unit
 ) {
     val logs by logsFlow.collectAsState(initial = emptyList())
@@ -35,6 +41,13 @@ fun DebugScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    if (logs.isNotEmpty()) {
+                        TextButton(onClick = onClear) {
+                            Text("CLEAR", color = MaterialTheme.colorScheme.error)
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -118,13 +131,59 @@ fun ActionLogItem(log: AiActionLogEntity) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
-                    Text(
-                        text = "AI DECISION",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        val tagLabel: String
+                        val tagColor: androidx.compose.ui.graphics.Color
+                        val tagBg: androidx.compose.ui.graphics.Color
+                        val tagIcon: androidx.compose.ui.graphics.vector.ImageVector
+
+                        when(log.logType) {
+                            "ERROR" -> {
+                                tagLabel = "ERROR"
+                                tagColor = MaterialTheme.colorScheme.error
+                                tagBg = MaterialTheme.colorScheme.errorContainer
+                                tagIcon = androidx.compose.material.icons.Icons.Default.Error
+                            }
+                            "AUTH" -> {
+                                tagLabel = "AUTH"
+                                tagColor = MaterialTheme.colorScheme.tertiary
+                                tagBg = MaterialTheme.colorScheme.tertiaryContainer
+                                tagIcon = androidx.compose.material.icons.Icons.Default.Lock
+                            }
+                            "SYSTEM" -> {
+                                tagLabel = "SYSTEM"
+                                tagColor = MaterialTheme.colorScheme.secondary
+                                tagBg = MaterialTheme.colorScheme.secondaryContainer
+                                tagIcon = androidx.compose.material.icons.Icons.Default.Settings
+                            }
+                            else -> {
+                                tagLabel = "AI ACTION"
+                                tagColor = MaterialTheme.colorScheme.primary
+                                tagBg = MaterialTheme.colorScheme.primaryContainer
+                                tagIcon = androidx.compose.material.icons.Icons.Default.AutoAwesome
+                            }
+                        }
+                        
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(tagBg)
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                Icon(tagIcon, contentDescription = null, modifier = Modifier.size(12.dp), tint = tagColor)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = tagLabel,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = tagColor,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = log.actionSummary,
                         style = MaterialTheme.typography.bodyMedium,

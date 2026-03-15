@@ -58,4 +58,10 @@ class DashboardViewModel(
             repository.deleteEvent(event)
         }
     }
+
+    fun clearLogs() {
+        viewModelScope.launch {
+            repository.clearLogs()
+        }
+    }
 }

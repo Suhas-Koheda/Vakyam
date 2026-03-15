@@ -36,7 +36,8 @@ data class CalendarEventEntity(
 @Entity(tableName = "ai_action_logs")
 data class AiActionLogEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val emailId: String?,
+    val emailId: String? = null,
+    val logType: String = "ACTION", // ACTION, AUTH, SYSTEM, ERROR
     val subject: String,
     val actionSummary: String,
     val timestamp: Long = System.currentTimeMillis()
@@ -103,6 +104,9 @@ interface AiActionLogDao {
 
     @Insert
     suspend fun insertLog(log: AiActionLogEntity): Long
+
+    @Query("DELETE FROM ai_action_logs")
+    suspend fun deleteAllLogs()
 }
 
 @Dao
@@ -132,7 +136,7 @@ interface ProcessedEmailDao {
     CalendarEventEntity::class, 
     AiActionLogEntity::class, 
     AppSettingEntity::class
-], version = 3, exportSchema = false)
+], version = 4, exportSchema = false)
 abstract class VakyaDatabase : RoomDatabase() {
     abstract fun accountDao(): AccountDao
     abstract fun calendarEventDao(): CalendarEventDao

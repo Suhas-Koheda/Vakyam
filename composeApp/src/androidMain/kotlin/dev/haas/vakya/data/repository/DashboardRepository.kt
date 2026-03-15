@@ -28,4 +28,6 @@ class DashboardRepository(
     suspend fun markAsIgnored(eventId: Long) = calendarEventDao.markAsIgnored(eventId)
 
     suspend fun deleteEvent(event: CalendarEventEntity) = calendarEventDao.deleteEvent(event)
+
+    suspend fun clearLogs() = aiActionLogDao.deleteAllLogs()
 }

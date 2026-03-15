@@ -22,6 +22,80 @@ fun SettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
+    
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    if (uiState.showConsentSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.setShowConsentSheet(false) },
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surface,
+            dragHandle = { BottomSheetDefaults.DragHandle() }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp)
+                    .padding(bottom = 32.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Surface(
+                    shape = androidx.compose.foundation.shape.CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(64.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Security,
+                        contentDescription = null,
+                        modifier = Modifier.padding(16.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                Text(
+                    "Google Permissions",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Text(
+                    "To help you stay on top of your schedule, Vakya needs permission to:",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                PermissionReasonItem(Icons.Default.Email, "Read emails", "To find meeting invitations and deadlines automatically.")
+                PermissionReasonItem(Icons.Default.CalendarMonth, "Manage Calendar", "To add extracted meetings to your schedule.")
+                PermissionReasonItem(Icons.Default.Dns, "Local Processing", "Your data stays on this device. AI analysis is local.")
+
+                Spacer(modifier = Modifier.height(32.dp))
+                
+                Button(
+                    onClick = { 
+                        viewModel.setShowConsentSheet(false)
+                        onAddAccount() 
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Text("I Understand, Let's Sign In")
+                }
+                
+                TextButton(onClick = { viewModel.setShowConsentSheet(false) }) {
+                    Text("Maybe Later")
+                }
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -43,17 +117,29 @@ fun SettingsScreen(
                         account = account,
                         availableCalendars = uiState.calendars[account.email] ?: emptyList(),
                         onUpdate = { viewModel.updateAccount(it) },
-                        onRemove = { viewModel.removeAccount(it) }
+                        onRemove = { viewModel.removeAccount(it) },
+                        onAddAccount = onAddAccount
                     )
                 }
                 Button(
-                    onClick = onAddAccount,
+                    onClick = { viewModel.setShowConsentSheet(true) },
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    shape = MaterialTheme.shapes.medium
+                    shape = MaterialTheme.shapes.medium,
+                    enabled = !uiState.isSigningIn
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Add Account")
+                    if (uiState.isSigningIn) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text("Connecting...")
+                    } else {
+                        Icon(Icons.Default.Add, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Add Account")
+                    }
                 }
             }
 
@@ -209,7 +295,8 @@ fun AccountItem(
     account: AccountEntity,
     availableCalendars: List<dev.haas.vakya.data.google.CalendarEntry>,
     onUpdate: (AccountEntity) -> Unit,
-    onRemove: (AccountEntity) -> Unit
+    onRemove: (AccountEntity) -> Unit,
+    onAddAccount: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -246,8 +333,52 @@ fun AccountItem(
                     }
                 )
             } else {
-                Text("No calendars found", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+                Surface(
+                    color = if (account.accessToken == null) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant,
+                    shape = MaterialTheme.shapes.small,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            if (account.accessToken == null) Icons.Default.Warning else Icons.Default.Info,
+                            contentDescription = null,
+                            tint = if (account.accessToken == null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (account.accessToken == null) "Permission required for Calendar" else "No calendars found",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (account.accessToken == null) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (account.accessToken == null) {
+                            Spacer(modifier = Modifier.weight(1f))
+                            TextButton(onClick = onAddAccount, contentPadding = PaddingValues(0.dp)) {
+                                Text("AUTHORIZE", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
             }
+        }
+    }
+}
+
+@Composable
+fun PermissionReasonItem(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, description: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+        Spacer(modifier = Modifier.width(16.dp))
+        Column {
+            Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+            Text(description, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

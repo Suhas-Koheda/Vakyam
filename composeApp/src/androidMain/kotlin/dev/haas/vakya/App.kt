@@ -81,16 +81,22 @@ fun App() {
 
     val db = AppContextHolder.database
 
+    val moshi = remember {
+        com.squareup.moshi.Moshi.Builder()
+            .add(com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory())
+            .build()
+    }
+
     val retrofit = remember {
         Retrofit.Builder()
             .baseUrl("https://www.googleapis.com/")
-            .addConverterFactory(MoshiConverterFactory.create())
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
     }
     val calendarApi = remember { retrofit.create(CalendarApi::class.java) }
 
     val dashboardRepository = remember { DashboardRepository(db.calendarEventDao(), db.aiActionLogDao()) }
-    val settingsRepository = remember { SettingsRepository(db.accountDao(), db.appSettingDao(), calendarApi) }
+    val settingsRepository = remember { SettingsRepository(db.accountDao(), db.appSettingDao(), db.aiActionLogDao(), calendarApi) }
 
     val dashboardViewModel = remember { DashboardViewModel(dashboardRepository) }
     val settingsViewModel = remember { SettingsViewModel(settingsRepository) }
@@ -124,6 +130,7 @@ fun App() {
                     Screen.Debug -> {
                         dev.haas.vakya.ui.debug.DebugScreen(
                             logsFlow = db.aiActionLogDao().getRecentLogs(),
+                            onClear = { dashboardViewModel.clearLogs() },
                             onBack = { currentScreen = Screen.Dashboard }
                         )
                     }
@@ -131,9 +138,16 @@ fun App() {
                         SettingsScreen(
                             viewModel = settingsViewModel,
                             onAddAccount = {
-                                scope.launch { authManager.signIn() }
-                            }
-                        )
+                    scope.launch {
+                        settingsViewModel.setSigningIn(true)
+                        try {
+                            authManager.signIn()
+                        } finally {
+                            settingsViewModel.setSigningIn(false)
+                        }
+                    }
+                },
+                  )
                     }
                 }
             }

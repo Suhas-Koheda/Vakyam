@@ -1,5 +1,6 @@
 package dev.haas.vakya.ui.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.haas.vakya.data.database.AccountEntity
@@ -18,7 +19,9 @@ data class SettingsUiState(
     val dailySummary: Boolean = true,
     val localAiOnly: Boolean = true,
     val gmailSourceEmail: String? = null,
-    val calendarDestEmail: String? = null
+    val calendarDestEmail: String? = null,
+    val isSigningIn: Boolean = false,
+    val showConsentSheet: Boolean = false
 )
 
 
@@ -63,6 +66,14 @@ class SettingsViewModel(
 
     }
 
+    fun setSigningIn(loading: Boolean) {
+        _uiState.update { it.copy(isSigningIn = loading) }
+    }
+
+    fun setShowConsentSheet(show: Boolean) {
+        _uiState.update { it.copy(showConsentSheet = show) }
+    }
+
     fun updateAccount(account: AccountEntity) {
         viewModelScope.launch { repository.updateAccount(account) }
     }
@@ -73,7 +84,9 @@ class SettingsViewModel(
 
     fun fetchCalendars(email: String, accessToken: String) {
         viewModelScope.launch {
+            Log.d("SettingsViewModel", "Starting fetchCalendars for $email")
             val cals = repository.getCalendars(accessToken)
+            Log.d("SettingsViewModel", "Received ${cals.size} calendars for $email")
             _uiState.update { state ->
                 val newMap = state.calendars.toMutableMap()
                 newMap[email] = cals
