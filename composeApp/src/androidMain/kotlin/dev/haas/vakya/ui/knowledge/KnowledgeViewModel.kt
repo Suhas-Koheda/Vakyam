@@ -68,11 +68,12 @@ class KnowledgeViewModel(
 
     suspend fun getNoteById(id: Long) = repository.getNoteById(id)
 
-    fun saveNote(title: String, content: String, tags: String, linkedEventId: Long? = null) {
+    fun saveNote(title: String, content: String, tags: String, summary: String? = null, linkedEventId: Long? = null) {
         viewModelScope.launch {
             val note = KnowledgeNoteEntity(
                 title = title,
                 content = content,
+                summary = summary,
                 tags = tags,
                 linkedEventId = linkedEventId
             )
@@ -105,6 +106,29 @@ class KnowledgeViewModel(
 
     fun clearSuggestedTags() {
         _suggestedTags.value = emptyList()
+    }
+
+    fun generateTitleAndSummary(content: String, onResult: (String, String) -> Unit) {
+        viewModelScope.launch {
+            val prompt = """
+                Based on the following note content, provide a short concise title and a 1-sentence summary.
+                Format exactly as:
+                TITLE: [Your Title]
+                SUMMARY: [Your Summary]
+                
+                Content: $content
+            """.trimIndent()
+            
+            val response = gemmaParser.generateResponse(prompt)
+            val title = response.substringAfter("TITLE:").substringBefore("SUMMARY:").trim()
+                .removePrefix("[").removeSuffix("]")
+            val summary = response.substringAfter("SUMMARY:").trim()
+                .removePrefix("[").removeSuffix("]")
+            
+            if (title.isNotEmpty() && summary.isNotEmpty()) {
+                onResult(title, summary)
+            }
+        }
     }
 
     fun convertToTask(note: KnowledgeNoteEntity, onComplete: () -> Unit) {

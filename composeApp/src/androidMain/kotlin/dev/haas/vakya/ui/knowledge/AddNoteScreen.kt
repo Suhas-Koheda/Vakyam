@@ -20,9 +20,10 @@ fun AddNoteScreen(
 ) {
     var title by remember { mutableStateOf("") }
     var content by remember { mutableStateOf("") }
+    var summary by remember { mutableStateOf("") }
     var tags by remember { mutableStateOf("") }
     val suggestedTags by viewModel.suggestedTags.collectAsState()
-    var isSuggestingTags by remember { mutableStateOf(false) }
+    var isEnhancing by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -39,11 +40,11 @@ fun AddNoteScreen(
                 actions = {
                     TextButton(
                         onClick = {
-                            viewModel.saveNote(title, content, tags)
+                            viewModel.saveNote(title, content, tags, summary)
                             viewModel.clearSuggestedTags()
                             onBack()
                         },
-                        enabled = title.isNotBlank() && content.isNotBlank()
+                        enabled = (title.isNotBlank() || content.isNotBlank())
                     ) {
                         Text("Save")
                     }
@@ -96,6 +97,40 @@ fun AddNoteScreen(
                 }
             }
 
+            if (summary.isNotEmpty()) {
+                OutlinedTextField(
+                    value = summary,
+                    onValueChange = { summary = it },
+                    label = { Text("Summary (Auto-generated)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 2
+                )
+            }
+
+            Button(
+                onClick = {
+                    isEnhancing = true
+                    viewModel.suggestTags(content)
+                    viewModel.generateTitleAndSummary(content) { genTitle, genSummary ->
+                        if (title.isBlank()) title = genTitle
+                        summary = genSummary
+                        isEnhancing = false
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isEnhancing && content.isNotBlank()
+            ) {
+                if (isEnhancing) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("AI Analyzing...")
+                } else {
+                    Icon(Icons.Default.AutoAwesome, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Auto-generate Title & Summary")
+                }
+            }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -110,17 +145,11 @@ fun AddNoteScreen(
 
                 IconButton(
                     onClick = {
-                        isSuggestingTags = true
                         viewModel.suggestTags(content)
-                        isSuggestingTags = false
                     },
-                    enabled = !isSuggestingTags && content.isNotBlank()
+                    enabled = !isEnhancing && content.isNotBlank()
                 ) {
-                    if (isSuggestingTags) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                    } else {
-                        Icon(Icons.Default.AutoAwesome, contentDescription = "Suggest Tags")
-                    }
+                    Icon(Icons.Default.AutoAwesome, contentDescription = "Suggest Tags")
                 }
             }
         }

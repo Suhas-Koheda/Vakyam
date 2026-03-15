@@ -27,6 +27,7 @@ fun NoteDetailScreen(
     
     var title by remember { mutableStateOf("") }
     var content by remember { mutableStateOf("") }
+    var summary by remember { mutableStateOf("") }
     var tags by remember { mutableStateOf("") }
 
     LaunchedEffect(noteId) {
@@ -34,6 +35,7 @@ fun NoteDetailScreen(
         note?.let {
             title = it.title
             content = it.content
+            summary = it.summary ?: ""
             tags = it.tags
         }
     }
@@ -51,7 +53,7 @@ fun NoteDetailScreen(
                     if (isEditing) {
                         TextButton(onClick = {
                             note?.let {
-                                val updatedNote = it.copy(title = title, content = content, tags = tags)
+                                val updatedNote = it.copy(title = title, content = content, tags = tags, summary = summary.ifBlank { null })
                                 viewModel.updateNote(updatedNote)
                                 note = updatedNote
                                 isEditing = false
@@ -98,6 +100,13 @@ fun NoteDetailScreen(
                         modifier = Modifier.fillMaxWidth().weight(1f)
                     )
                     OutlinedTextField(
+                        value = summary,
+                        onValueChange = { summary = it },
+                        label = { Text("Summary") },
+                        modifier = Modifier.fillMaxWidth(),
+                        maxLines = 2
+                    )
+                    OutlinedTextField(
                         value = tags,
                         onValueChange = { tags = it },
                         label = { Text("Tags") },
@@ -106,6 +115,10 @@ fun NoteDetailScreen(
                 } else {
                     Text(text = currentNote.title, style = MaterialTheme.typography.headlineSmall)
                     HorizontalDivider()
+                    currentNote.summary?.let { 
+                        Text(text = it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
                     Text(text = currentNote.content, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                     
                     if (currentNote.tags.isNotEmpty()) {

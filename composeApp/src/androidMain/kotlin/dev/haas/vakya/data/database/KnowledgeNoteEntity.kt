@@ -7,6 +7,7 @@ data class KnowledgeNoteEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val title: String,
     val content: String,
+    val summary: String? = null,
     val tags: String, // comma separated
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
