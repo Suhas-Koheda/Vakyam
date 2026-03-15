@@ -18,11 +18,11 @@ class AgentDecisionLayer(
         accessToken: String,
         calendarId: String,
         extracted: ExtractedEvent
-    ): String {
+    ): ResultConfig {
         val authHeader = "Bearer $accessToken"
         
         if (extracted.type == "ignore" || extracted.confidence < 0.7) {
-            return "Ignored: Low confidence or irrelevant type."
+            return ResultConfig("Ignored: Low confidence or irrelevant type.", null, "", "")
         }
 
         // Tool: list_calendar_events
@@ -41,28 +41,27 @@ class AgentDecisionLayer(
         // Logic: avoid duplicates
         val duplicate = existingEvents.find { it.summary.contains(extracted.title, ignoreCase = true) }
         if (duplicate != null) {
-            return "Skipped: Duplicate event '${extracted.title}' found."
+            return ResultConfig("Skipped: Duplicate event '${extracted.title}' found.", null, "", "")
         }
 
-        // Tool: create_calendar_event
-        return try {
-            val startTime = extracted.start_time ?: extracted.deadline ?: getCurrentIsoTimestamp()
-            val endTime = extracted.end_time ?: startTime // Simple fallback
-            
-            val newEvent = CalendarEvent(
-                summary = extracted.title,
-                description = "Added by Vakya AI Agent. \nCourse: ${extracted.course}\n${extracted.description}",
-                start = CalendarTime(dateTime = startTime),
-                end = CalendarTime(dateTime = endTime)
-            )
-            
-            calendarApi.createEvent(calendarId = calendarId, event = newEvent, authHeader = authHeader)
-            "Created event: ${extracted.title}"
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to create event", e)
-            "Error creating event: ${e.localizedMessage}"
-        }
+        // The event is put in the review queue rather than immediately created.
+        val startTime = extracted.start_time ?: extracted.deadline ?: getCurrentIsoTimestamp()
+        val endTime = extracted.end_time ?: startTime
+        
+        return ResultConfig(
+            actionMessage = "Queued event: ${extracted.title}",
+            extractedEvent = extracted,
+            startTimeIso = startTime,
+            endTimeIso = endTime
+        )
     }
+
+    data class ResultConfig(
+        val actionMessage: String,
+        val extractedEvent: ExtractedEvent?,
+        val startTimeIso: String,
+        val endTimeIso: String
+    )
 
     private fun getCurrentIsoTimestamp(): String {
         return ZonedDateTime.now().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)

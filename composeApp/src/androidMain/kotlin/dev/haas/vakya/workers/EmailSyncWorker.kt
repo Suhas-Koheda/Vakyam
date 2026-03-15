@@ -80,7 +80,8 @@ class EmailSyncWorker(
                 var actionResult = "No extraction"
                 if (extracted != null) {
                     val calendarId = dest.targetCalendarId ?: "primary"
-                    actionResult = decisionLayer.decideAndAct(dest.email, dest.accessToken!!, calendarId, extracted)
+                    val resultConfig = decisionLayer.decideAndAct(dest.email, dest.accessToken!!, calendarId, extracted)
+                    val actionResult = resultConfig.actionMessage
                     Log.d(TAG, "Action for ${email.id} (Source: ${source.email}, Dest: ${dest.email}): $actionResult")
 
                     db.aiActionLogDao().insertLog(
@@ -91,15 +92,17 @@ class EmailSyncWorker(
                         )
                     )
 
-                    if (actionResult.contains("Created event", ignoreCase = true)) {
-                        db.calendarEventDao().insertEvent(
-                            dev.haas.vakya.data.database.CalendarEventEntity(
+                    if (actionResult.contains("Queued event", ignoreCase = true)) {
+                        db.pendingEventDao().insertEvent(
+                            dev.haas.vakya.data.database.pendingEvents.PendingEvent(
+                                emailId = email.id,
                                 title = extracted.title,
-                                startTime = parseIsoToLong(extracted.start_time ?: extracted.deadline),
-                                endTime = extracted.end_time?.let { parseIsoToLong(it) },
-                                source = "Gmail (${source.email})",
-                                accountEmail = dest.email,
-                                status = "ADDED"
+                                description = "Course: ${extracted.course}\n${extracted.description}",
+                                startTime = resultConfig.startTimeIso,
+                                endTime = resultConfig.endTimeIso,
+                                deadline = extracted.deadline,
+                                confidence = extracted.confidence.toFloat(),
+                                accountId = dest.email
                             )
                         )
                     }

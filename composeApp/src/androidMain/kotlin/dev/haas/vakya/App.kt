@@ -9,25 +9,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.Font
 import dev.haas.vakya.common.SentenceSummarizer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-
-import vakya.composeapp.generated.resources.*
-import vakya.composeapp.generated.resources.Res
-import vakya.composeapp.generated.resources.jetbrainsmono_regular
-import vakya.composeapp.generated.resources.jetbrainsmono_bold
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.PlaylistAddCheck
 import androidx.compose.ui.graphics.vector.ImageVector
 import dev.haas.vakya.data.repository.DashboardRepository
 import dev.haas.vakya.data.repository.SettingsRepository
@@ -38,37 +30,15 @@ import dev.haas.vakya.ui.viewmodel.SettingsViewModel
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import dev.haas.vakya.data.google.CalendarApi
+import dev.haas.vakya.ui.theme.VakyaTheme
 
 
-@Composable
-fun VakyaTypography(): Typography {
-    val jetbrainsMono = FontFamily(
-        Font(Res.font.jetbrainsmono_regular, FontWeight.Normal),
-        Font(Res.font.jetbrainsmono_bold, FontWeight.Bold)
-    )
 
-    return Typography(
-        displayLarge = MaterialTheme.typography.displayLarge.copy(fontFamily = jetbrainsMono),
-        displayMedium = MaterialTheme.typography.displayMedium.copy(fontFamily = jetbrainsMono),
-        displaySmall = MaterialTheme.typography.displaySmall.copy(fontFamily = jetbrainsMono),
-        headlineLarge = MaterialTheme.typography.headlineLarge.copy(fontFamily = jetbrainsMono),
-        headlineMedium = MaterialTheme.typography.headlineMedium.copy(fontFamily = jetbrainsMono),
-        headlineSmall = MaterialTheme.typography.headlineSmall.copy(fontFamily = jetbrainsMono),
-        titleLarge = MaterialTheme.typography.titleLarge.copy(fontFamily = jetbrainsMono),
-        titleMedium = MaterialTheme.typography.titleMedium.copy(fontFamily = jetbrainsMono),
-        titleSmall = MaterialTheme.typography.titleSmall.copy(fontFamily = jetbrainsMono),
-        bodyLarge = MaterialTheme.typography.bodyLarge.copy(fontFamily = jetbrainsMono),
-        bodyMedium = MaterialTheme.typography.bodyMedium.copy(fontFamily = jetbrainsMono),
-        bodySmall = MaterialTheme.typography.bodySmall.copy(fontFamily = jetbrainsMono),
-        labelLarge = MaterialTheme.typography.labelLarge.copy(fontFamily = jetbrainsMono),
-        labelMedium = MaterialTheme.typography.labelMedium.copy(fontFamily = jetbrainsMono),
-        labelSmall = MaterialTheme.typography.labelSmall.copy(fontFamily = jetbrainsMono)
-    )
-}
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
 
     object Dashboard : Screen("dashboard", "Dashboard", Icons.Default.Dashboard)
+    object Review : Screen("review", "Review", Icons.Default.PlaylistAddCheck)
     object Debug : Screen("debug", "Debug", Icons.Default.BugReport)
     object Settings : Screen("settings", "Settings", Icons.Default.Settings)
 }
@@ -97,17 +67,29 @@ fun App() {
 
     val dashboardRepository = remember { DashboardRepository(db.calendarEventDao(), db.aiActionLogDao()) }
     val settingsRepository = remember { SettingsRepository(db.accountDao(), db.appSettingDao(), db.aiActionLogDao(), calendarApi) }
+    val pendingEventRepository = remember { dev.haas.vakya.data.repository.PendingEventRepository(db.pendingEventDao()) }
 
     val dashboardViewModel = remember { DashboardViewModel(dashboardRepository) }
     val settingsViewModel = remember { SettingsViewModel(settingsRepository) }
+    val reviewQueueViewModel = remember { 
+        val deduplicationService = dev.haas.vakya.domain.deduplication.CalendarDeduplicationService(calendarApi)
+        val approveUseCase = dev.haas.vakya.domain.agent.ApprovePendingEventUseCase(
+            db.accountDao(), calendarApi, deduplicationService, db.aiActionLogDao(), db.calendarEventDao()
+        )
+        dev.haas.vakya.ui.reviewQueue.ReviewQueueViewModel(
+            pendingEventRepository,
+            onApproveCallback = { event -> approveUseCase.execute(event) }
+        ) 
+    }
 
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Dashboard) }
 
-    MaterialTheme(typography = VakyaTypography()) {
-        Scaffold(
+    VakyaTheme {
+        Surface {
+            Scaffold(
             bottomBar = {
                 NavigationBar {
-                    val items = listOf(Screen.Dashboard, Screen.Debug, Screen.Settings)
+                    val items = listOf(Screen.Dashboard, Screen.Review, Screen.Debug, Screen.Settings)
                     items.forEach { screen ->
                         NavigationBarItem(
                             icon = { Icon(screen.icon, contentDescription = screen.title) },
@@ -125,6 +107,11 @@ fun App() {
                         DashboardScreen(
                             viewModel = dashboardViewModel,
                             onOpenDebug = { currentScreen = Screen.Debug }
+                        )
+                    }
+                    Screen.Review -> {
+                        dev.haas.vakya.ui.reviewQueue.ReviewQueueScreen(
+                            viewModel = reviewQueueViewModel
                         )
                     }
                     Screen.Debug -> {

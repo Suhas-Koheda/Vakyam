@@ -71,7 +71,7 @@ class GemmaParser {
         null
     }
 
-    private fun runInference(prompt: String): String? {
+    internal fun runInference(prompt: String): String? {
         val modelFile = File(MODEL_PATH)
         if (!modelFile.exists()) {
             Log.e(TAG, "Model file not found at $MODEL_PATH")
