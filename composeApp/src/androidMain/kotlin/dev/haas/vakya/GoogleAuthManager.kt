@@ -62,6 +62,15 @@ class GoogleAuthManager(private val context: Context) {
             .setServerClientId(WEB_CLIENT_ID)
             .setAutoSelectEnabled(true)
             .build()
+        
+        // Note: For real Gmail/Calendar access, you would also need to request 
+        // access tokens with scopes like:
+        // "https://www.googleapis.com/auth/gmail.readonly"
+        // "https://www.googleapis.com/auth/calendar.events"
+        // Credential Manager primarily provides ID tokens. 
+        // For broad API access, you might need a separate Auth flow or 
+        // exchange the code for tokens on a backend.
+
 
         val request: GetCredentialRequest = GetCredentialRequest.Builder()
             .addCredentialOption(googleIdOption)
@@ -90,8 +99,26 @@ class GoogleAuthManager(private val context: Context) {
             )
             _userState.value = userData
             saveUserState(userData)
+
+            // Save to Room for Agent
+            kotlinx.coroutines.MainScope().launch {
+                val db = androidx.room.Room.databaseBuilder(
+                    context,
+                    dev.haas.vakya.data.database.VakyaDatabase::class.java, "vakya-db"
+                ).build()
+                db.accountDao().insertAccount(
+                    dev.haas.vakya.data.database.AccountEntity(
+                        email = userData.email,
+                        displayName = userData.displayName,
+                        isGmailEnabled = true,
+                        targetCalendarId = "primary",
+                        accessToken = googleIdTokenCredential.idToken // Using ID token as placeholder or if it's actually an access token (usually Credential Manager gives ID token, but we might need to swap for access token later)
+                    )
+                )
+            }
         }
     }
+
 
     fun signOut() {
         _userState.value = null

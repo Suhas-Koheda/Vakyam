@@ -6,7 +6,9 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.ksp)
 }
+
 
 kotlin {
     androidTarget {
@@ -24,7 +26,13 @@ kotlin {
             implementation(libs.googleid)
             implementation(libs.play.services.auth)
             implementation(libs.mediapipe.tasks.genai)
+            implementation(libs.androidx.work.runtime.ktx)
+            
+            // Room
+            implementation(libs.androidx.room.runtime)
+            implementation(libs.androidx.room.ktx)
         }
+
         commonMain.dependencies {
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
@@ -34,7 +42,16 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
+            
+            // Retrofit & Network
+            implementation(libs.retrofit)
+            implementation(libs.retrofit.moshi)
+            implementation(libs.okhttp)
+            implementation(libs.okhttp.logging)
+            implementation(libs.moshi)
+            implementation(libs.moshi.adapters)
         }
+
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }
@@ -70,5 +87,7 @@ android {
 
 dependencies {
     debugImplementation(libs.compose.uiTooling)
+    add("kspAndroid", libs.androidx.room.compiler)
 }
+
 
