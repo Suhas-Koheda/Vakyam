@@ -69,19 +69,21 @@ class VakyaWidget : GlanceAppWidget() {
                     modifier = GlanceModifier.defaultWeight()
                 )
                 
-                // Create Option
+                // Create Option (rounded add button)
                 Box(
                     modifier = GlanceModifier
-                        .padding(4.dp)
-                        .background(ColorProvider(Blush.copy(alpha = 0.2f)))
-                        .clickable(actionStartActivity<MainActivity>())
+                        .size(36.dp)
+                        .background(ColorProvider(Crimson))
+                        .cornerRadius(18)
+                        .clickable(actionStartActivity<MainActivity>()),
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = " + ",
+                        text = "+",
                         style = TextStyle(
-                            fontWeight = FontWeight.Bold, 
-                            fontSize = 18.sp, 
-                            color = accentColor
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp,
+                            color = ColorProvider(White)
                         )
                     )
                 }

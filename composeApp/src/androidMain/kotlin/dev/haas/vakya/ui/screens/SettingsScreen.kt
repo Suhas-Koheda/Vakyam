@@ -13,6 +13,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.haas.vakya.data.database.AccountEntity
 import dev.haas.vakya.ui.viewmodel.SettingsViewModel
+import androidx.compose.ui.graphics.Color
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -111,22 +112,68 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             // Google Accounts
+            val trackedCount = uiState.accounts.count { it.isGmailEnabled }
             SettingsSection("Google Accounts", Icons.Default.AccountCircle) {
-                uiState.accounts.forEach { account ->
-                    AccountItem(
-                        account = account,
-                        availableCalendars = uiState.calendars[account.email] ?: emptyList(),
-                        onUpdate = { viewModel.updateAccount(it) },
-                        onRemove = { viewModel.removeAccount(it) },
-                        onAddAccount = onAddAccount,
-                        onCreateCalendar = { viewModel.createCalendar(account.email, it) }
-                    )
+
+                // Tracked accounts summary badge
+                if (uiState.accounts.isNotEmpty()) {
+                    Surface(
+                        color = if (trackedCount > 0) MaterialTheme.colorScheme.primaryContainer
+                                else MaterialTheme.colorScheme.surfaceVariant,
+                        shape = MaterialTheme.shapes.medium,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Email,
+                                contentDescription = null,
+                                tint = if (trackedCount > 0) MaterialTheme.colorScheme.primary
+                                       else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = if (trackedCount == 0) "No accounts being tracked"
+                                       else if (trackedCount == 1) "1 account being tracked for Gmail"
+                                       else "$trackedCount accounts being tracked for Gmail",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                color = if (trackedCount > 0) MaterialTheme.colorScheme.onPrimaryContainer
+                                        else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
                 }
+
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    uiState.accounts.forEach { account ->
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = true,
+                            enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.expandVertically(),
+                            exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.shrinkVertically()
+                        ) {
+                            AccountItem(
+                                account = account,
+                                availableCalendars = uiState.calendars[account.email] ?: emptyList(),
+                                onUpdate = { viewModel.updateAccount(it) },
+                                onRemove = { viewModel.removeAccount(it) },
+                                onAddAccount = onAddAccount,
+                                onCreateCalendar = { viewModel.createCalendar(account.email, it) }
+                            )
+                        }
+                    }
+                }
+                
                 Button(
                     onClick = { viewModel.setShowConsentSheet(true) },
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                     shape = MaterialTheme.shapes.medium,
-                    enabled = !uiState.isSigningIn
+                    enabled = !uiState.isSigningIn,
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
                 ) {
                     if (uiState.isSigningIn) {
                         CircularProgressIndicator(
@@ -139,32 +186,52 @@ fun SettingsScreen(
                     } else {
                         Icon(Icons.Default.Add, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Add Account")
+                        Text("Add Google Account")
                     }
                 }
+                
+                Text(
+                    "Toggle \"Track Gmail\" on each account you want Vakya to monitor for events. Each account syncs to its own calendar by default.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp, start = 4.dp)
+                )
             }
 
 
-            // Agent Sync Mapping
-
-            SettingsSection("Agent Sync Mapping", Icons.Default.SwapHoriz) {
-                DropdownSetting(
-                    label = "Gmail Source",
-                    options = uiState.accounts.map { it.email },
-                    selected = uiState.gmailSourceEmail ?: "Not Selected",
-                    onSelected = { viewModel.setSetting(SettingsViewModel.KEY_GMAIL_SOURCE, it) }
-                )
-                DropdownSetting(
-                    label = "Calendar Destination",
-                    options = uiState.accounts.map { it.email },
-                    selected = uiState.calendarDestEmail ?: "Not Selected",
-                    onSelected = { viewModel.setSetting(SettingsViewModel.KEY_CALENDAR_DEST, it) }
-                )
+            // Email → Calendar Routing
+            SettingsSection("Email → Calendar Routing", Icons.Default.SwapHoriz) {
                 Text(
-                    "Select which account the AI should monitor for invitation/deadline emails, and which account's calendar it should update.",
+                    "Route Gmail from one account into another account's calendar. Useful when you read work emails on a personal account.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp)
                 )
+                
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        DropdownSetting(
+                            label = "Source Gmail",
+                            options = listOf("None") + uiState.accounts.map { it.email },
+                            selected = uiState.gmailSourceEmail ?: "None",
+                            onSelected = { 
+                                if (it == "None") viewModel.setSetting(SettingsViewModel.KEY_GMAIL_SOURCE, "")
+                                else viewModel.setSetting(SettingsViewModel.KEY_GMAIL_SOURCE, it) 
+                            }
+                        )
+                    }
+                    Box(modifier = Modifier.weight(1f)) {
+                        DropdownSetting(
+                            label = "Dest. Calendar",
+                            options = listOf("None") + uiState.accounts.map { it.email },
+                            selected = uiState.calendarDestEmail ?: "None",
+                            onSelected = { 
+                                if (it == "None") viewModel.setSetting(SettingsViewModel.KEY_CALENDAR_DEST, "")
+                                else viewModel.setSetting(SettingsViewModel.KEY_CALENDAR_DEST, it) 
+                            }
+                        )
+                    }
+                }
             }
 
             // Email Parsing Settings
@@ -315,12 +382,47 @@ fun AccountItem(
                 }
             }
             
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
-                Text("Gmail Sync", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                Switch(
-                    checked = account.isGmailEnabled,
-                    onCheckedChange = { onUpdate(account.copy(isGmailEnabled = it)) }
-                )
+            // Gmail Tracking toggle — prominent and descriptive
+            Surface(
+                color = if (account.isGmailEnabled)
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                else
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                shape = MaterialTheme.shapes.small,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Email,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = if (account.isGmailEnabled)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Track Gmail",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            if (account.isGmailEnabled) "Scanning for events"
+                            else "Not being monitored",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = account.isGmailEnabled,
+                        onCheckedChange = { onUpdate(account.copy(isGmailEnabled = it)) }
+                    )
+                }
             }
 
             if (availableCalendars.isNotEmpty()) {

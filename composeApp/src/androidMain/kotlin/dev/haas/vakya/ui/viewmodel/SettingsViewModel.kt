@@ -36,9 +36,9 @@ class SettingsViewModel(
         viewModelScope.launch {
             repository.getAllAccounts().collect { accounts ->
                 _uiState.update { it.copy(accounts = accounts) }
-                // Fetch calendars for each account if they have an access token
+                // Fetch calendars for each account if they have an access token and haven't been fetched yet
                 accounts.forEach { account ->
-                    if (account.accessToken != null) {
+                    if (account.accessToken != null && !_uiState.value.calendars.containsKey(account.email)) {
                         fetchCalendars(account.email, account.accessToken)
                     }
                 }

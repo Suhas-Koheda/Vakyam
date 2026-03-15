@@ -117,26 +117,29 @@ fun DashboardScreen(
             }
 
             // Summaries Section
+            // Summaries Section
             item {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Card(
                         modifier = Modifier.weight(1f),
-                        onClick = { viewModel.generateDailyBriefing() }
+                        onClick = { viewModel.generateDailyBriefing() },
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Icon(Icons.Default.WbSunny, contentDescription = null, tint = Color(0xFFFFB300))
+                        Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.WbSunny, contentDescription = null, tint = Color(0xFFFFB300), modifier = Modifier.size(32.dp))
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text("Briefing", style = MaterialTheme.typography.titleSmall)
+                            Text("Daily Briefing", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                         }
                     }
                     Card(
                         modifier = Modifier.weight(1f),
-                        onClick = { viewModel.generateWeeklySummary() }
+                        onClick = { viewModel.generateWeeklySummary() },
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f))
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text("Summary", style = MaterialTheme.typography.titleSmall)
+                            Text("Weekly Insight", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -148,9 +151,9 @@ fun DashboardScreen(
             }
             
             if (uiState.todayEvents.isEmpty()) {
-                item { EmptyState("No events for today") }
+                item { EmptyState("Your schedule is clear for today!") }
             } else {
-                items(uiState.todayEvents) { event ->
+                items(uiState.todayEvents, key = { it.id }) { event ->
                     EventCard(
                         event = event,
                         onIgnore = { viewModel.markAsIgnored(event.id) },
@@ -161,30 +164,30 @@ fun DashboardScreen(
 
             // KNOWLEDGE Section
             item {
-                SectionHeader("RECENT NOTES", MaterialTheme.colorScheme.tertiary)
+                SectionHeader("KNOWLEDGE BASE", MaterialTheme.colorScheme.tertiary)
             }
             if (uiState.recentNotes.isEmpty()) {
-                item { EmptyState("No recent notes") }
+                item { EmptyState("Start capturing knowledge with AI") }
             } else {
-                items(uiState.recentNotes) { note ->
+                items(uiState.recentNotes, key = { it.id }) { note ->
                     dev.haas.vakya.ui.knowledge.NoteCard(note = note, onClick = { onNoteClick(note.id) })
                 }
                 item {
                     TextButton(onClick = onNavigateToKnowledge, modifier = Modifier.fillMaxWidth()) {
-                        Text("View All Notes")
+                        Text("Explore All Notes", fontWeight = FontWeight.Bold)
                     }
                 }
             }
 
             // UPCOMING Section
             item {
-                SectionHeader("UPCOMING", MaterialTheme.colorScheme.primary)
+                SectionHeader("FUTURE PERSPECTIVE", MaterialTheme.colorScheme.primary)
             }
             
             if (uiState.upcomingEvents.isEmpty()) {
-                item { EmptyState("No upcoming events") }
+                item { EmptyState("No upcoming commitments") }
             } else {
-                items(uiState.upcomingEvents) { event ->
+                items(uiState.upcomingEvents, key = { it.id }) { event ->
                     EventCard(
                         event = event,
                         onIgnore = { viewModel.markAsIgnored(event.id) },
@@ -195,13 +198,13 @@ fun DashboardScreen(
 
             // RECENT AI ACTIONS
             item {
-                SectionHeader("RECENT AI ACTIONS", MaterialTheme.colorScheme.secondary)
+                SectionHeader("AI ANALYTICS", MaterialTheme.colorScheme.secondary)
             }
             
             if (uiState.recentActions.isEmpty()) {
-                item { EmptyState("No recent AI actions") }
+                item { EmptyState("AI is monitoring your accounts...") }
             } else {
-                items(uiState.recentActions) { action ->
+                items(uiState.recentActions, key = { it.id }) { action ->
                     AiActionItem(action)
                 }
             }

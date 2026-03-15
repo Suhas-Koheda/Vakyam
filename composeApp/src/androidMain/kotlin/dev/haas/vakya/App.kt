@@ -61,15 +61,9 @@ fun App() {
             .build()
     }
 
-    val retrofit = remember {
-        Retrofit.Builder()
-            .baseUrl("https://www.googleapis.com/")
-            .addConverterFactory(MoshiConverterFactory.create(moshi))
-            .build()
-    }
-    val calendarApi = remember { retrofit.create(CalendarApi::class.java) }
+    val gemmaParser = AppContextHolder.gemmaParser
+    val calendarApi = AppContextHolder.calendarApi
 
-    val gemmaParser = remember { dev.haas.vakya.ai.GemmaParser() }
     val weeklySummaryUseCase = remember { dev.haas.vakya.domain.ai.WeeklySummaryUseCase(db.calendarEventDao(), gemmaParser) }
     val dailyBriefingUseCase = remember { dev.haas.vakya.domain.ai.DailyBriefingUseCase(db.calendarEventDao(), gemmaParser) }
 

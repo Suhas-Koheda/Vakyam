@@ -5,44 +5,56 @@ import dev.haas.vakya.data.database.ProcessedEmailDao
 import dev.haas.vakya.data.database.ProcessedEmailEntity
 import dev.haas.vakya.data.google.GmailApi
 import dev.haas.vakya.domain.models.EmailMessage
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 
 class GoogleRepository(
     private val gmailApi: GmailApi,
     private val accountDao: AccountDao,
     private val processedEmailDao: ProcessedEmailDao
 ) {
-    suspend fun getUnreadEmails(accountEmail: String, accessToken: String): List<EmailMessage> {
+    suspend fun getUnreadEmails(accountEmail: String, accessToken: String): List<EmailMessage> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         val authHeader = "Bearer $accessToken"
-        // Query: unread, newer than 1d
         val query = "is:unread newer_than:1d"
-        val response = gmailApi.listMessages(query = query, authHeader = authHeader)
-        
-        val messages = mutableListOf<EmailMessage>()
-        response.messages?.forEach { msgRef ->
-            if (!processedEmailDao.isProcessed(msgRef.id)) {
-                val fullMsg = gmailApi.getMessage(id = msgRef.id, authHeader = authHeader)
-                val subject = fullMsg.payload.headers.find { it.name == "Subject" }?.value ?: "(No Subject)"
-                val from = fullMsg.payload.headers.find { it.name == "From" }?.value ?: "Unknown"
-                
-                // Extract Body
-                val bodyText = extractBody(fullMsg) ?: fullMsg.snippet
-                
-                messages.add(
-                    EmailMessage(
-                        id = fullMsg.id,
-                        threadId = fullMsg.threadId,
-                        subject = subject,
-                        sender = from,
-                        snippet = fullMsg.snippet,
-                        body = bodyText,
-                        timestamp = System.currentTimeMillis(),
-                        accountEmail = accountEmail
-                    )
-                )
-            }
+        val response = try {
+            gmailApi.listMessages(query = query, authHeader = authHeader)
+        } catch (e: Exception) {
+            return@withContext emptyList()
         }
-        return messages
+        
+        val messageRefs = response.messages ?: return@withContext emptyList()
+        
+        val unprocessed = messageRefs.filter { !processedEmailDao.isProcessed(it.id) }
+        
+        val results: List<EmailMessage> = coroutineScope {
+            unprocessed.map { msgRef ->
+                async {
+                    try {
+                        val fullMsg = gmailApi.getMessage(id = msgRef.id, authHeader = authHeader)
+                        val subject = fullMsg.payload.headers.find { it.name == "Subject" }?.value ?: "(No Subject)"
+                        val from = fullMsg.payload.headers.find { it.name == "From" }?.value ?: "Unknown"
+                        
+                        val bodyText = extractBody(fullMsg) ?: fullMsg.snippet
+                        
+                        EmailMessage(
+                            id = fullMsg.id,
+                            threadId = fullMsg.threadId,
+                            subject = subject,
+                            sender = from,
+                            snippet = fullMsg.snippet,
+                            body = bodyText,
+                            timestamp = System.currentTimeMillis(),
+                            accountEmail = accountEmail
+                        )
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+            }.awaitAll().filterNotNull()
+        }
+        
+        return@withContext results
     }
 
     private fun extractBody(message: dev.haas.vakya.data.google.GmailMessageResponse): String? {

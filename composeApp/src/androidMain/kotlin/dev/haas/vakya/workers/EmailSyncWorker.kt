@@ -27,39 +27,44 @@ class EmailSyncWorker(
         val db = dev.haas.vakya.AppContextHolder.database
         val notificationManager = dev.haas.vakya.notifications.VakyaNotificationManager(applicationContext)
 
-        val retrofit = Retrofit.Builder()
-            .baseUrl("https://www.googleapis.com/")
-            .addConverterFactory(MoshiConverterFactory.create())
-            .build()
-
-        val gmailApi = retrofit.create(GmailApi::class.java)
-        val calendarApi = retrofit.create(CalendarApi::class.java)
+        val gmailApi = dev.haas.vakya.AppContextHolder.gmailApi
+        val calendarApi = dev.haas.vakya.AppContextHolder.calendarApi
         
         val repository = GoogleRepository(gmailApi, db.accountDao(), db.processedEmailDao())
-        val parser = GemmaParser()
+        val parser = dev.haas.vakya.AppContextHolder.gemmaParser
         val decisionLayer = AgentDecisionLayer(calendarApi)
 
-        val sourceEmail = db.appSettingDao().getSetting("gmail_source")?.value
-        val destEmail = db.appSettingDao().getSetting("calendar_dest")?.value
-        
         // Load confidence threshold from settings
         val confidenceThreshold = db.appSettingDao().getSetting(dev.haas.vakya.ui.viewmodel.SettingsViewModel.KEY_CONFIDENCE)
             ?.value?.toFloatOrNull() ?: 0.7f
 
-        if (sourceEmail != null && destEmail != null) {
-            val sourceAccount = db.accountDao().getAccountByEmail(sourceEmail)
-            val destAccount = db.accountDao().getAccountByEmail(destEmail)
+        val accounts = db.accountDao().getAllAccountsList()
+        val gmailSource = db.appSettingDao().getSetting("gmail_source")?.value
+        val calendarDest = db.appSettingDao().getSetting("calendar_dest")?.value
+
+        if (gmailSource != null && calendarDest != null) {
+            // Priority: Specific mapping set in settings
+            val sourceAccount = accounts.find { it.email == gmailSource }
+            val destAccount = accounts.find { it.email == calendarDest }
 
             if (sourceAccount?.accessToken != null && destAccount?.accessToken != null) {
+                Log.d(TAG, "Syncing specific mapping: $gmailSource -> $calendarDest")
                 syncBetweenAccounts(sourceAccount, destAccount, repository, parser, decisionLayer, db, notificationManager, confidenceThreshold)
             }
-        } else {
-            // Fallback: process all enabled accounts (original behavior)
-            val accounts = db.accountDao().getAllAccountsList()
-            for (account in accounts) {
-                if (!account.isGmailEnabled || account.accessToken == null) continue
-                syncBetweenAccounts(account, account, repository, parser, decisionLayer, db, notificationManager, confidenceThreshold)
-            }
+        }
+
+        // Also sync all other accounts that have Gmail enabled
+        for (account in accounts) {
+            // Skip the account if it was already processed as a source in the specific mapping above
+            // to avoid duplicate work, unless the user specifically wants it.
+            // For simplicity, we just sync any account that is enabled.
+            if (!account.isGmailEnabled || account.accessToken == null) continue
+            
+            // If this account IS the gmailSource, we skip it because it was already synced
+            if (account.email == gmailSource) continue
+
+            Log.d(TAG, "Syncing account: ${account.email} -> ${account.targetCalendarId}")
+            syncBetweenAccounts(account, account, repository, parser, decisionLayer, db, notificationManager, confidenceThreshold)
         }
 
         return Result.success()
