@@ -56,6 +56,9 @@ interface AccountDao {
     @Query("SELECT * FROM google_accounts")
     suspend fun getAllAccountsList(): List<AccountEntity>
 
+    @Query("SELECT * FROM google_accounts WHERE email = :email")
+    suspend fun getAccountByEmail(email: String): AccountEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAccount(account: AccountEntity): Long
 

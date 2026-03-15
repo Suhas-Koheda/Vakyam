@@ -57,7 +57,29 @@ fun SettingsScreen(
                 }
             }
 
+            // Agent Sync Mapping
+            SettingsSection("Agent Sync Mapping", Icons.Default.SwapHoriz) {
+                DropdownSetting(
+                    label = "Gmail Source",
+                    options = uiState.accounts.map { it.email },
+                    selected = uiState.gmailSourceEmail ?: "Not Selected",
+                    onSelected = { viewModel.setSetting(SettingsViewModel.KEY_GMAIL_SOURCE, it) }
+                )
+                DropdownSetting(
+                    label = "Calendar Destination",
+                    options = uiState.accounts.map { it.email },
+                    selected = uiState.calendarDestEmail ?: "Not Selected",
+                    onSelected = { viewModel.setSetting(SettingsViewModel.KEY_CALENDAR_DEST, it) }
+                )
+                Text(
+                    "Select which account the AI should monitor for invitation/deadline emails, and which account's calendar it should update.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
             // Email Parsing Settings
+
             SettingsSection("Email Parsing", Icons.Default.Email) {
                 DropdownSetting(
                     label = "Scanning Interval",
