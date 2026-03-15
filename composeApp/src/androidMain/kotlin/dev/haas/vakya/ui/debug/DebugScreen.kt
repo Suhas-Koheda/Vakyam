@@ -11,8 +11,10 @@ import androidx.compose.ui.unit.dp
 import dev.haas.vakya.data.database.ActionLogEntity
 import kotlinx.coroutines.flow.Flow
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DebugScreen(
+
     logsFlow: Flow<List<ActionLogEntity>>,
     onBack: () -> Unit
 ) {

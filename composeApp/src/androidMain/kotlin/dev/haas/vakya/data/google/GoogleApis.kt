@@ -20,6 +20,11 @@ interface GmailApi {
 }
 
 interface CalendarApi {
+    @GET("calendar/v3/users/me/calendarList")
+    suspend fun listCalendarList(
+        @Header("Authorization") authHeader: String
+    ): CalendarListResponse
+
     @GET("calendar/v3/calendars/{calendarId}/events")
     suspend fun listEvents(
         @Path("calendarId") calendarId: String = "primary",
@@ -35,6 +40,17 @@ interface CalendarApi {
         @Header("Authorization") authHeader: String
     ): CalendarEvent
 }
+
+data class CalendarListResponse(
+    val items: List<CalendarEntry>?
+)
+
+data class CalendarEntry(
+    val id: String,
+    val summary: String,
+    val primary: Boolean = false
+)
+
 
 // Response Models
 data class GmailMessageListResponse(

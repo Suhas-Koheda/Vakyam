@@ -57,14 +57,38 @@ class EmailSyncWorker(
                         actionResult = decisionLayer.decideAndAct(account.email, account.accessToken, extracted)
                         Log.d(TAG, "Action for ${email.id}: $actionResult")
                         
-                        db.processedEmailDao().insertActionLog(
-                            dev.haas.vakya.data.database.ActionLogEntity(
+                        // Log the action
+                        db.aiActionLogDao().insertLog(
+                            dev.haas.vakya.data.database.AiActionLogEntity(
                                 emailId = email.id,
                                 subject = email.subject,
-                                aiOutput = extracted.toString(),
-                                actionTaken = actionResult
+                                actionSummary = actionResult
                             )
                         )
+
+                        // If successful addition to calendar, record it
+                        if (actionResult.contains("Created event", ignoreCase = true)) {
+                            db.calendarEventDao().insertEvent(
+                                dev.haas.vakya.data.database.CalendarEventEntity(
+                                    title = extracted.title,
+                                    startTime = parseIsoToLong(extracted.start_time ?: extracted.deadline),
+                                    endTime = extracted.end_time?.let { parseIsoToLong(it) },
+                                    source = "Gmail",
+                                    accountEmail = account.email,
+                                    status = "ADDED"
+                                )
+                            )
+                        } else if (actionResult.contains("Ignored", ignoreCase = true)) {
+                             db.calendarEventDao().insertEvent(
+                                dev.haas.vakya.data.database.CalendarEventEntity(
+                                    title = extracted.title,
+                                    startTime = parseIsoToLong(extracted.start_time ?: extracted.deadline),
+                                    source = "Gmail",
+                                    accountEmail = account.email,
+                                    status = "IGNORED"
+                                )
+                            )
+                        }
 
                     }
                     repository.markEmailProcessed(email.id, account.email)
@@ -77,4 +101,14 @@ class EmailSyncWorker(
 
         return Result.success()
     }
+
+    private fun parseIsoToLong(iso: String?): Long {
+        if (iso == null) return System.currentTimeMillis()
+        return try {
+            java.time.ZonedDateTime.parse(iso).toInstant().toEpochMilli()
+        } catch (e: Exception) {
+            System.currentTimeMillis()
+        }
+    }
 }
+

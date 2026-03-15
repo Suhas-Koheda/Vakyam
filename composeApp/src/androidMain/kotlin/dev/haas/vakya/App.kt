@@ -50,43 +50,28 @@ fun VakyaTypography(): Typography {
     )
 }
 
+import androidx.compose.ui.graphics.vector.ImageVector
+import dev.haas.vakya.data.repository.DashboardRepository
+import dev.haas.vakya.data.repository.SettingsRepository
+import dev.haas.vakya.ui.screens.DashboardScreen
+import dev.haas.vakya.ui.screens.SettingsScreen
+import dev.haas.vakya.ui.viewmodel.DashboardViewModel
+import dev.haas.vakya.ui.viewmodel.SettingsViewModel
+import retrofit2.Retrofit
+import retrofit2.converter.moshi.MoshiConverterFactory
+import dev.haas.vakya.data.google.CalendarApi
+
+sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
+    object Dashboard : Screen("dashboard", "Dashboard", Icons.Default.Dashboard)
+    object Debug : Screen("debug", "Debug", Icons.Default.BugReport)
+    object Settings : Screen("settings", "Settings", Icons.Default.Settings)
+}
+
 @Composable
-@Preview
 fun App() {
     val context = androidx.compose.ui.platform.LocalContext.current
     val authManager = remember { GoogleAuthManager(context) }
     val scope = rememberCoroutineScope()
-
-    // Permission Handling
-    val permissionsToRequest = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-        arrayOf(android.Manifest.permission.POST_NOTIFICATIONS)
-    } else {
-        emptyArray()
-    }
-
-    var hasNotificationPermission by remember { 
-        mutableStateOf(
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                androidx.core.content.ContextCompat.checkSelfPermission(
-                    context, android.Manifest.permission.POST_NOTIFICATIONS
-                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-            } else true
-        )
-    }
-
-    val launcher = androidx.activity.compose.rememberLauncherForActivityResult(
-        androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        hasNotificationPermission = permissions.values.all { it }
-    }
-
-    LaunchedEffect(Unit) {
-        if (permissionsToRequest.isNotEmpty() && !hasNotificationPermission) {
-            launcher.launch(permissionsToRequest)
-        }
-    }
-
-
 
     val db = remember {
         androidx.room.Room.databaseBuilder(
@@ -94,127 +79,67 @@ fun App() {
             dev.haas.vakya.data.database.VakyaDatabase::class.java, "vakya-db"
         ).fallbackToDestructiveMigration().build()
     }
-    val accounts by db.accountDao().getAllAccounts().collectAsState(initial = emptyList())
 
-    var showDebug by remember { mutableStateOf(false) }
+    val retrofit = remember {
+        Retrofit.Builder()
+            .baseUrl("https://www.googleapis.com/")
+            .addConverterFactory(MoshiConverterFactory.create())
+            .build()
+    }
+    val calendarApi = remember { retrofit.create(CalendarApi::class.java) }
+
+    val dashboardRepository = remember { DashboardRepository(db.calendarEventDao(), db.aiActionLogDao()) }
+    val settingsRepository = remember { SettingsRepository(db.accountDao(), db.appSettingDao(), calendarApi) }
+
+    val dashboardViewModel = remember { DashboardViewModel(dashboardRepository) }
+    val settingsViewModel = remember { SettingsViewModel(settingsRepository) }
+
+    var currentScreen by remember { mutableStateOf<Screen>(Screen.Dashboard) }
 
     MaterialTheme(typography = VakyaTypography()) {
-        if (showDebug) {
-            dev.haas.vakya.ui.debug.DebugScreen(
-                logsFlow = db.processedEmailDao().getRecentLogs(),
-                onBack = { showDebug = false }
-            )
-        } else {
-            val scrollState = rememberScrollState()
-            Column(
-                modifier = Modifier
-                    .background(MaterialTheme.colorScheme.primaryContainer)
-                    .safeContentPadding()
-                    .fillMaxSize()
-                    .verticalScroll(scrollState),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Top
-            ) {
-                Spacer(modifier = Modifier.height(32.dp))
-
-                if (!hasNotificationPermission) {
-                    Card(
-                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
-                    ) {
-                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                "Notifications are disabled. The agent cannot alert you to new events.",
-                                modifier = Modifier.weight(1f),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onErrorContainer
-                            )
-                            TextButton(onClick = { launcher.launch(permissionsToRequest) }) {
-                                Text("Fix")
-                            }
-                        }
+        Scaffold(
+            bottomBar = {
+                NavigationBar {
+                    val items = listOf(Screen.Dashboard, Screen.Debug, Screen.Settings)
+                    items.forEach { screen ->
+                        NavigationBarItem(
+                            icon = { Icon(screen.icon, contentDescription = screen.title) },
+                            label = { Text(screen.title) },
+                            selected = currentScreen == screen,
+                            onClick = { currentScreen = screen }
+                        )
                     }
                 }
-
-                Row(
-
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Vakya AI Agent",
-                        style = MaterialTheme.typography.headlineSmall
-                    )
-                    Button(onClick = { showDebug = true }) {
-                        Text("Debug")
+            }
+        ) { padding ->
+            Box(modifier = Modifier.padding(padding)) {
+                when (currentScreen) {
+                    Screen.Dashboard -> {
+                        DashboardScreen(
+                            viewModel = dashboardViewModel,
+                            onOpenDebug = { currentScreen = Screen.Debug }
+                        )
+                    }
+                    Screen.Debug -> {
+                        dev.haas.vakya.ui.debug.DebugScreen(
+                            logsFlow = db.aiActionLogDao().getRecentLogs(),
+                            onBack = { currentScreen = Screen.Dashboard }
+                        )
+                    }
+                    Screen.Settings -> {
+                        SettingsScreen(
+                            viewModel = settingsViewModel,
+                            onAddAccount = {
+                                scope.launch { authManager.signIn() }
+                            }
+                        )
                     }
                 }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                if (accounts.isEmpty()) {
-                    Box(modifier = Modifier.padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "Connect Google account to track events.",
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.padding(16.dp)
-                            )
-                            Button(
-                                onClick = {
-                                    scope.launch {
-                                        authManager.signIn()
-                                    }
-                                }
-                            ) {
-                                Text("Sign In with Google")
-                            }
-                        }
-                    }
-                } else {
-                    Text("Connected Accounts", style = MaterialTheme.typography.titleMedium)
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        accounts.forEach { account ->
-                            Card(
-                                modifier = Modifier.padding(8.dp).fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(16.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(account.displayName ?: "Unknown", fontWeight = FontWeight.Bold)
-                                        Text(account.email, style = MaterialTheme.typography.bodySmall)
-                                    }
-                                    Switch(
-                                        checked = account.isGmailEnabled,
-                                        onCheckedChange = { checked ->
-                                            scope.launch {
-                                                db.accountDao().insertAccount(account.copy(isGmailEnabled = checked))
-                                            }
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    Button(
-                        onClick = { scope.launch { authManager.signIn() } },
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Text("Add Another Account")
-                    }
-                }
-
-                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
-
-                GemmaTestSection()
             }
         }
     }
 }
+
 
 @Composable
 fun GemmaTestSection() {
