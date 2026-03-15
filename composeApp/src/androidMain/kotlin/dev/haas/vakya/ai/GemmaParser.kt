@@ -79,18 +79,47 @@ class GemmaParser {
         """.trimIndent()
 
         val response = runInference(prompt) ?: return@withContext null
-        
+        return@withContext parseJsonResponse(response)
+    }
+
+    suspend fun parseSentence(sentence: String): ExtractedEvent? = withContext(Dispatchers.IO) {
+        val safeSentence = sentence.replace("```", "")
+        val prompt = """
+            Extract structured information from the following sentence.
+            Return ONLY a valid JSON object.
+            Format:
+            {
+              "type": "event | assignment | announcement | ignore",
+              "title": "",
+              "description": "",
+              "start_time": "",
+              "end_time": "",
+              "deadline": "",
+              "course": "",
+              "confidence": 0.0
+            }
+            Sentence:
+            ```
+            $safeSentence
+            ```
+        """.trimIndent()
+
+        val response = runInference(prompt) ?: return@withContext null
+        return@withContext parseJsonResponse(response)
+    }
+
+    private fun parseJsonResponse(response: String): ExtractedEvent? {
         try {
             val jsonStart = response.indexOf("{")
             val jsonEnd = response.lastIndexOf("}") + 1
             if (jsonStart != -1 && jsonEnd > jsonStart) {
                 val jsonStr = response.substring(jsonStart, jsonEnd)
-                return@withContext adapter.fromJson(jsonStr)
+                return adapter.fromJson(jsonStr)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse JSON: $response", e)
         }
-        null
+        return null
     }
 
     suspend fun generateResponse(prompt: String): String = withContext(Dispatchers.IO) {

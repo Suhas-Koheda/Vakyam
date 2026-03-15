@@ -39,6 +39,10 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector)
     object Loading : Screen("loading", "Loading", Icons.Default.Refresh)
     object Dashboard : Screen("dashboard", "Dashboard", Icons.Default.Dashboard)
     object Review : Screen("review", "Review", Icons.Default.PlaylistAddCheck)
+    object Knowledge : Screen("knowledge", "Knowledge", Icons.Default.AutoStories)
+    object AddTask : Screen("add_task", "Add Task", Icons.Default.AddTask)
+    object NoteDetail : Screen("note_detail", "Note Detail", Icons.Default.Description)
+    object AddNote : Screen("add_note", "Add Note", Icons.Default.NoteAdd)
     object Debug : Screen("debug", "Debug", Icons.Default.BugReport)
     object Settings : Screen("settings", "Settings", Icons.Default.Settings)
 }
@@ -67,14 +71,17 @@ fun App() {
 
     val gemmaParser = remember { dev.haas.vakya.ai.GemmaParser() }
     val weeklySummaryUseCase = remember { dev.haas.vakya.domain.ai.WeeklySummaryUseCase(db.calendarEventDao(), gemmaParser) }
+    val dailyBriefingUseCase = remember { dev.haas.vakya.domain.ai.DailyBriefingUseCase(db.calendarEventDao(), gemmaParser) }
 
+    val knowledgeRepository = remember { dev.haas.vakya.data.repository.KnowledgeRepository(db.knowledgeNoteDao()) }
     val dashboardRepository = remember { DashboardRepository(db.calendarEventDao(), db.aiActionLogDao()) }
     val settingsRepository = remember { SettingsRepository(db.accountDao(), db.appSettingDao(), db.aiActionLogDao(), calendarApi) }
     val pendingEventRepository = remember { dev.haas.vakya.data.repository.PendingEventRepository(db.pendingEventDao()) }
 
     val startupViewModel = remember { dev.haas.vakya.ui.viewmodel.StartupViewModel(db, context) }
-    val dashboardViewModel = remember { DashboardViewModel(dashboardRepository, weeklySummaryUseCase) }
+    val dashboardViewModel = remember { DashboardViewModel(dashboardRepository, pendingEventRepository, gemmaParser, weeklySummaryUseCase, dailyBriefingUseCase, knowledgeRepository) }
     val settingsViewModel = remember { SettingsViewModel(settingsRepository) }
+    val knowledgeViewModel = remember { dev.haas.vakya.ui.knowledge.KnowledgeViewModel(knowledgeRepository, gemmaParser) }
     
     val reviewQueueViewModel = remember { 
         val notificationManager = dev.haas.vakya.notifications.VakyaNotificationManager(context)
@@ -84,11 +91,13 @@ fun App() {
         )
         dev.haas.vakya.ui.reviewQueue.ReviewQueueViewModel(
             pendingEventRepository,
+            db.aiLearningRuleDao(),
             onApproveCallback = { event -> approveUseCase.execute(event) }
         ) 
     }
 
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Loading) }
+    var selectedNoteId by remember { mutableStateOf<Long?>(null) }
 
     VakyaTheme {
         Surface {
@@ -96,7 +105,7 @@ fun App() {
             bottomBar = {
                 if (currentScreen != Screen.Loading) {
                     NavigationBar {
-                        val items = listOf(Screen.Dashboard, Screen.Review, Screen.Debug, Screen.Settings)
+                        val items = listOf(Screen.Dashboard, Screen.Review, Screen.Knowledge, Screen.Settings)
                         items.forEach { screen ->
                             NavigationBarItem(
                                 icon = { Icon(screen.icon, contentDescription = screen.title) },
@@ -121,12 +130,62 @@ fun App() {
                     Screen.Dashboard -> {
                         DashboardScreen(
                             viewModel = dashboardViewModel,
-                            onOpenDebug = { currentScreen = Screen.Debug }
+                            onOpenDebug = { currentScreen = Screen.Debug },
+                            onNavigateToAddTask = { currentScreen = Screen.AddTask },
+                            onNavigateToAddNote = { currentScreen = Screen.AddNote },
+                            onNavigateToKnowledge = { currentScreen = Screen.Knowledge },
+                            onNoteClick = { id -> 
+                                selectedNoteId = id
+                                currentScreen = Screen.NoteDetail
+                            }
                         )
                     }
                     Screen.Review -> {
                         dev.haas.vakya.ui.reviewQueue.ReviewQueueScreen(
                             viewModel = reviewQueueViewModel
+                        )
+                    }
+                    Screen.Knowledge -> {
+                        dev.haas.vakya.ui.knowledge.KnowledgeBaseScreen(
+                            viewModel = knowledgeViewModel,
+                            onAddNote = { currentScreen = Screen.AddNote },
+                            onNoteClick = { id -> 
+                                selectedNoteId = id
+                                currentScreen = Screen.NoteDetail 
+                            }
+                        )
+                    }
+                    Screen.AddNote -> {
+                        dev.haas.vakya.ui.knowledge.AddNoteScreen(
+                            viewModel = knowledgeViewModel,
+                            onBack = { currentScreen = Screen.Knowledge }
+                        )
+                    }
+                    Screen.NoteDetail -> {
+                        selectedNoteId?.let { id ->
+                            dev.haas.vakya.ui.knowledge.NoteDetailScreen(
+                                noteId = id,
+                                viewModel = knowledgeViewModel,
+                                onBack = { currentScreen = Screen.Knowledge }
+                            )
+                        }
+                    }
+                    Screen.AddTask -> {
+                        val accounts by settingsViewModel.accounts.collectAsState()
+                        dev.haas.vakya.ui.tasks.AddTaskScreen(
+                            availableEmails = accounts.map { it.email },
+                            onSaveRequested = { event -> 
+                                scope.launch {
+                                    pendingEventRepository.insertEvent(dev.haas.vakya.data.database.pendingEvents.PendingEvent(
+                                        title = event.title,
+                                        startTime = java.time.Instant.ofEpochMilli(event.startTime).atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME),
+                                        emailId = event.accountEmail,
+                                        confidence = 1.0f,
+                                        type = "task"
+                                    ))
+                                }
+                            },
+                            onBack = { currentScreen = Screen.Dashboard }
                         )
                     }
                     Screen.Debug -> {
@@ -140,16 +199,16 @@ fun App() {
                         SettingsScreen(
                             viewModel = settingsViewModel,
                             onAddAccount = {
-                    scope.launch {
-                        settingsViewModel.setSigningIn(true)
-                        try {
-                            authManager.signIn()
-                        } finally {
-                            settingsViewModel.setSigningIn(false)
-                        }
-                    }
-                },
-                  )
+                                scope.launch {
+                                    settingsViewModel.setSigningIn(true)
+                                    try {
+                                        authManager.signIn()
+                                    } finally {
+                                        settingsViewModel.setSigningIn(false)
+                                    }
+                                }
+                            },
+                        )
                     }
                 }
             }

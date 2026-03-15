@@ -25,9 +25,15 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun DashboardScreen(
     viewModel: DashboardViewModel,
-    onOpenDebug: () -> Unit
+    onOpenDebug: () -> Unit,
+    onNavigateToAddTask: () -> Unit,
+    onNavigateToAddNote: () -> Unit,
+    onNavigateToKnowledge: () -> Unit,
+    onNoteClick: (Long) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    var showCreateDialog by remember { mutableStateOf(false) }
 
     if (uiState.weeklySummary != null) {
         AlertDialog(
@@ -42,6 +48,29 @@ fun DashboardScreen(
         )
     }
 
+    if (uiState.dailyBriefing != null) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissBriefing() },
+            title = { Text("Daily Briefing", fontWeight = FontWeight.Bold) },
+            text = { Text(uiState.dailyBriefing ?: "") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.dismissBriefing() }) {
+                    Text("Great!")
+                }
+            }
+        )
+    }
+
+    if (showCreateDialog) {
+        CreateManualEventDialog(
+            onDismiss = { showCreateDialog = false },
+            onCreate = { sentence ->
+                viewModel.processManualSentence(sentence)
+                showCreateDialog = false
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -52,19 +81,6 @@ fun DashboardScreen(
                     }
                 }
             )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { viewModel.generateWeeklySummary() },
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-            ) {
-                if (uiState.isSummaryLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                } else {
-                    Icon(Icons.Default.AutoAwesome, contentDescription = "Summarize Week")
-                }
-            }
         }
     ) { padding ->
         LazyColumn(
@@ -75,24 +91,52 @@ fun DashboardScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Summary CTA Item
+            // Quick Actions
             item {
-                Card(
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
-                    onClick = { viewModel.generateWeeklySummary() }
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Summarize, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Your Week at a Glance", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                            Text("Get an AI summary of your upcoming events.", style = MaterialTheme.typography.bodySmall)
+                    ElevatedButton(
+                        onClick = onNavigateToAddTask,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.AddTask, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Add Task")
+                    }
+                    ElevatedButton(
+                        onClick = onNavigateToAddNote,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.NoteAdd, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Add Note")
+                    }
+                }
+            }
+
+            // Summaries Section
+            item {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Card(
+                        modifier = Modifier.weight(1f),
+                        onClick = { viewModel.generateDailyBriefing() }
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Icon(Icons.Default.WbSunny, contentDescription = null, tint = Color(0xFFFFB300))
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("Briefing", style = MaterialTheme.typography.titleSmall)
                         }
-                        if (uiState.isSummaryLoading) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                        } else {
-                            Icon(Icons.Default.ChevronRight, contentDescription = null)
+                    }
+                    Card(
+                        modifier = Modifier.weight(1f),
+                        onClick = { viewModel.generateWeeklySummary() }
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("Summary", style = MaterialTheme.typography.titleSmall)
                         }
                     }
                 }
@@ -112,6 +156,23 @@ fun DashboardScreen(
                         onIgnore = { viewModel.markAsIgnored(event.id) },
                         onDelete = { viewModel.deleteEvent(event) }
                     )
+                }
+            }
+
+            // KNOWLEDGE Section
+            item {
+                SectionHeader("RECENT NOTES", MaterialTheme.colorScheme.tertiary)
+            }
+            if (uiState.recentNotes.isEmpty()) {
+                item { EmptyState("No recent notes") }
+            } else {
+                items(uiState.recentNotes) { note ->
+                    dev.haas.vakya.ui.knowledge.NoteCard(note = note, onClick = { onNoteClick(note.id) })
+                }
+                item {
+                    TextButton(onClick = onNavigateToKnowledge, modifier = Modifier.fillMaxWidth()) {
+                        Text("View All Notes")
+                    }
                 }
             }
 
@@ -172,7 +233,7 @@ fun EventCard(
     onDelete: () -> Unit
 ) {
     val urgencyColor = when {
-        event.status == "IGNORED" -> Color.Gray
+        event.status == "IGNORED" -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
         else -> {
             val now = System.currentTimeMillis()
             val diff = event.startTime - now
@@ -209,20 +270,30 @@ fun EventCard(
             Spacer(modifier = Modifier.height(8.dp))
             
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.AccessTime, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Gray)
+                Icon(
+                    Icons.Default.AccessTime, 
+                    contentDescription = null, 
+                    modifier = Modifier.size(16.dp), 
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = formatTime(event.startTime),
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.width(16.dp))
-                Icon(Icons.Default.Email, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Gray)
+                Icon(
+                    Icons.Default.Email, 
+                    contentDescription = null, 
+                    modifier = Modifier.size(16.dp), 
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = event.source,
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -273,8 +344,40 @@ fun EmptyState(message: String) {
         modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(message, style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+        Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
+}
+
+@Composable
+fun CreateManualEventDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit) {
+    var sentence by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Create AI Event", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Type a sentence like \"Meeting with Sam tomorrow at 10am\"", style = MaterialTheme.typography.bodySmall)
+                OutlinedTextField(
+                    value = sentence,
+                    onValueChange = { sentence = it },
+                    label = { Text("Event details") },
+                    placeholder = { Text("Lunch at 1pm...") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = { if (sentence.isNotBlank()) onCreate(sentence) }) {
+                Text("Analyze")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 fun formatTime(timestamp: Long): String {

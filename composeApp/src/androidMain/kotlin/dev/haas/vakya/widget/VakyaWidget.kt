@@ -18,6 +18,10 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import androidx.glance.action.actionStartActivity
+import dev.haas.vakya.MainActivity
+import dev.haas.vakya.ui.theme.*
+
 
 class VakyaWidget : GlanceAppWidget() {
 
@@ -37,46 +41,79 @@ class VakyaWidget : GlanceAppWidget() {
 
     @Composable
     private fun VakyaWidgetContent(today: List<CalendarEventEntity>, upcoming: List<CalendarEventEntity>) {
+        val backgroundColor = ColorProvider(light = White, dark = Void)
+        val onBackgroundColor = ColorProvider(light = Color.Black, dark = Mauve)
+        val secondaryTextColor = ColorProvider(light = Color.Gray, dark = Slate)
+        val accentColor = ColorProvider(light = Crimson, dark = Ember)
+
         Column(
             modifier = GlanceModifier
                 .fillMaxSize()
-                .background(Color.White)
+                .background(backgroundColor)
                 .padding(8.dp)
                 .appWidgetBackground()
         ) {
-            Text(
-                text = "Vakya Tasks",
-                style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 16.sp, color = ColorProvider(Color.Black))
-            )
+            Row(
+                modifier = GlanceModifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalAlignment = Alignment.Horizontal.CenterHorizontally
+            ) {
+                Text(
+                    text = "Vakya Tasks",
+                    style = TextStyle(
+                        fontWeight = FontWeight.Bold, 
+                        fontSize = 16.sp, 
+                        color = ColorProvider(light = Crimson, dark = Ember)
+                    ),
+                    modifier = GlanceModifier.defaultWeight()
+                )
+                
+                // Create Option
+                Box(
+                    modifier = GlanceModifier
+                        .padding(4.dp)
+                        .background(ColorProvider(light = Blush.copy(alpha = 0.2f), dark = Dusk))
+                        .clickable(actionStartActivity<MainActivity>())
+                ) {
+                    Text(
+                        text = " + ",
+                        style = TextStyle(
+                            fontWeight = FontWeight.Bold, 
+                            fontSize = 18.sp, 
+                            color = accentColor
+                        )
+                    )
+                }
+            }
             
             Spacer(modifier = GlanceModifier.height(8.dp))
             
             LazyColumn(modifier = GlanceModifier.fillMaxSize()) {
                 item {
-                    SectionDivider("TODAY")
+                    SectionDivider("TODAY", accentColor)
                 }
                 
                 if (today.isEmpty()) {
                     item {
-                        EmptyItem("No tasks today")
+                        EmptyItem("No tasks today", secondaryTextColor)
                     }
                 } else {
                     items(today) { event ->
-                        WidgetEventItem(event)
+                        WidgetEventItem(event, onBackgroundColor, secondaryTextColor)
                     }
                 }
                 
                 item {
-                    SectionDivider("UPCOMING")
+                    SectionDivider("UPCOMING", accentColor)
                 }
                 
                 if (upcoming.isEmpty()) {
                     item {
-                        EmptyItem("No upcoming tasks")
+                        EmptyItem("No upcoming tasks", secondaryTextColor)
                     }
                 } else {
                     items(upcoming) { event ->
-                        WidgetEventItem(event)
+                        WidgetEventItem(event, onBackgroundColor, secondaryTextColor)
                     }
                 }
             }
@@ -84,43 +121,44 @@ class VakyaWidget : GlanceAppWidget() {
     }
 
     @Composable
-    private fun SectionDivider(title: String) {
+    private fun SectionDivider(title: String, color: ColorProvider) {
         Column {
             Spacer(modifier = GlanceModifier.height(8.dp))
             Text(
                 text = title,
-                style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 12.sp, color = ColorProvider(Color.DarkGray))
+                style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 11.sp, color = color)
             )
-            Spacer(modifier = GlanceModifier.height(4.dp))
+            Spacer(modifier = GlanceModifier.height(2.dp))
         }
     }
 
     @Composable
-    private fun WidgetEventItem(event: CalendarEventEntity) {
+    private fun WidgetEventItem(event: CalendarEventEntity, primaryColor: ColorProvider, secondaryColor: ColorProvider) {
         val timeStr = LocalDateTime.ofInstant(Instant.ofEpochMilli(event.startTime), ZoneId.systemDefault())
             .format(DateTimeFormatter.ofPattern("hh:mm a"))
             
         Row(modifier = GlanceModifier.fillMaxWidth().padding(vertical = 4.dp)) {
-            Text(text = "•", style = TextStyle(color = ColorProvider(Color.Blue)))
+            Text(text = "•", style = TextStyle(color = ColorProvider(light = Violet, dark = Amethyst)))
             Spacer(modifier = GlanceModifier.width(4.dp))
             Column {
                 Text(
                     text = event.title,
-                    style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Medium, color = ColorProvider(Color.Black))
+                    style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Medium, color = primaryColor),
+                    maxLines = 1
                 )
                 Text(
                     text = timeStr,
-                    style = TextStyle(fontSize = 10.sp, color = ColorProvider(Color.Gray))
+                    style = TextStyle(fontSize = 10.sp, color = secondaryColor)
                 )
             }
         }
     }
 
     @Composable
-    private fun EmptyItem(msg: String) {
+    private fun EmptyItem(msg: String, color: ColorProvider) {
         Text(
             text = msg,
-            style = TextStyle(fontSize = 12.sp, color = ColorProvider(Color.Gray)),
+            style = TextStyle(fontSize = 11.sp, color = color),
             modifier = GlanceModifier.padding(start = 8.dp)
         )
     }

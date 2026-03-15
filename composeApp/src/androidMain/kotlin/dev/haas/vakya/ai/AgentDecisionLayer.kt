@@ -9,7 +9,8 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
 class AgentDecisionLayer(
-    private val calendarApi: CalendarApi
+    private val calendarApi: CalendarApi,
+    private val aiLearningRuleDao: dev.haas.vakya.data.dao.AiLearningRuleDao? = null
 ) {
     private val TAG = "AgentDecisionLayer"
 
@@ -22,8 +23,21 @@ class AgentDecisionLayer(
     ): ResultConfig {
         val authHeader = "Bearer $accessToken"
         
-        if (extracted.type == "ignore" || extracted.confidence < confidenceThreshold) {
-            return ResultConfig("Ignored: Low confidence (${extracted.confidence}) or irrelevant type.", null, "", "")
+        var adjustedConfidence = extracted.confidence
+        
+        // Consult learning rules
+        aiLearningRuleDao?.let { dao ->
+            val rules = dao.getAllRulesList()
+            rules.forEach { rule ->
+                if (extracted.title.contains(rule.keyword, ignoreCase = true) || 
+                    (rule.senderDomain != null && extracted.metadata?.contains(rule.senderDomain) == true)) {
+                    adjustedConfidence += rule.confidenceAdjustment
+                }
+            }
+        }
+
+        if (extracted.type == "ignore" || adjustedConfidence < confidenceThreshold) {
+            return ResultConfig("Ignored: Adjusted confidence ($adjustedConfidence) or irrelevant type.", null, "", "")
         }
 
         // Tool: list_calendar_events

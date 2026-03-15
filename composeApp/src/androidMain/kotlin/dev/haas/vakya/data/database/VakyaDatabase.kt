@@ -136,8 +136,10 @@ interface ProcessedEmailDao {
     CalendarEventEntity::class, 
     AiActionLogEntity::class, 
     AppSettingEntity::class,
-    dev.haas.vakya.data.database.pendingEvents.PendingEvent::class
-], version = 5, exportSchema = false)
+    dev.haas.vakya.data.database.pendingEvents.PendingEvent::class,
+    KnowledgeNoteEntity::class,
+    AiLearningRuleEntity::class
+], version = 6, exportSchema = false)
 abstract class VakyaDatabase : RoomDatabase() {
     abstract fun accountDao(): AccountDao
     abstract fun calendarEventDao(): CalendarEventDao
@@ -145,6 +147,8 @@ abstract class VakyaDatabase : RoomDatabase() {
     abstract fun appSettingDao(): AppSettingDao
     abstract fun processedEmailDao(): ProcessedEmailDao
     abstract fun pendingEventDao(): dev.haas.vakya.data.database.pendingEvents.PendingEventDao
+    abstract fun knowledgeNoteDao(): dev.haas.vakya.data.dao.KnowledgeNoteDao
+    abstract fun aiLearningRuleDao(): dev.haas.vakya.data.dao.AiLearningRuleDao
 }
 
 

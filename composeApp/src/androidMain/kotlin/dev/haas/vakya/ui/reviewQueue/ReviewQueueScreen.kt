@@ -26,7 +26,7 @@ import java.time.format.DateTimeFormatter
 fun ReviewQueueScreen(viewModel: ReviewQueueViewModel) {
     val events by viewModel.pendingEvents.collectAsState()
 
-    var eventToEdit by remember { mutableStateOf<PendingEvent?>(null) }
+    var eventToReject by remember { mutableStateOf<PendingEvent?>(null) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
@@ -64,7 +64,7 @@ fun ReviewQueueScreen(viewModel: ReviewQueueViewModel) {
                         PendingEventCard(
                             event = event,
                             onApprove = { viewModel.approveEvent(it) },
-                            onReject = { viewModel.rejectEvent(it) },
+                            onReject = { eventToReject = it },
                             onEdit = { eventToEdit = it }
                         )
                         Spacer(modifier = Modifier.height(8.dp))
@@ -81,6 +81,26 @@ fun ReviewQueueScreen(viewModel: ReviewQueueViewModel) {
             onSave = { updatedEvent ->
                 viewModel.updateEvent(updatedEvent)
                 eventToEdit = null
+            }
+        )
+    }
+
+    if (eventToReject != null) {
+        AlertDialog(
+            onDismissRequest = { eventToReject = null },
+            title = { Text("Reject Event") },
+            text = { Text("Should AI learn to ignore similar \"${eventToReject?.title?.split(" ")?.firstOrNull() ?: ""}\" events in the future?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    eventToReject?.let { viewModel.rejectEvent(it, storeFeedback = true) }
+                    eventToReject = null
+                }) { Text("Yes, Learn") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    eventToReject?.let { viewModel.rejectEvent(it, storeFeedback = false) }
+                    eventToReject = null
+                }) { Text("No, Just Reject") }
             }
         )
     }
@@ -111,7 +131,7 @@ fun PendingEventCard(
                 )
 
                 // Urgency / Confidence indicator
-                val confidenceColor = if (event.confidence > 0.8f) Color(0xFF4CAF50) else Color(0xFFFF9800)
+                val confidenceColor = if (event.confidence > 0.8f) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary
                 Box(
                     modifier = Modifier
                         .background(confidenceColor.copy(alpha = 0.2f), RoundedCornerShape(4.dp))

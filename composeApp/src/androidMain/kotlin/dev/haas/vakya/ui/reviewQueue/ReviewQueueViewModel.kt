@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 
 class ReviewQueueViewModel(
     private val repository: PendingEventRepository,
+    private val aiLearningRuleDao: dev.haas.vakya.data.dao.AiLearningRuleDao? = null,
     private val onApproveCallback: suspend (PendingEvent) -> Unit
 ) : ViewModel() {
 
@@ -32,9 +33,21 @@ class ReviewQueueViewModel(
         }
     }
 
-    fun rejectEvent(event: PendingEvent) {
+    fun rejectEvent(event: PendingEvent, storeFeedback: Boolean = false) {
         viewModelScope.launch {
             repository.rejectEvent(event.id)
+            if (storeFeedback) {
+                aiLearningRuleDao?.let { dao ->
+                    // Extract a keyword from the title (e.g. first word or specific tag)
+                    val keyword = event.title.split(" ").firstOrNull() ?: event.title
+                    dao.insertRule(dev.haas.vakya.data.database.AiLearningRuleEntity(
+                        keyword = keyword,
+                        senderDomain = null, // Could be enhanced to extract domain from emailId
+                        action = "ignore",
+                        confidenceAdjustment = -0.3f
+                    ))
+                }
+            }
         }
     }
 
