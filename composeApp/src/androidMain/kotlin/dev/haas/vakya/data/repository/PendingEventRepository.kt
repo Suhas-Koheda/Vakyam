@@ -30,4 +30,8 @@ class PendingEventRepository(
     suspend fun getEventById(id: Long): PendingEvent? {
         return pendingEventDao.getEventById(id)
     }
+
+    suspend fun deleteEvent(event: PendingEvent) {
+        pendingEventDao.deleteEvent(event)
+    }
 }

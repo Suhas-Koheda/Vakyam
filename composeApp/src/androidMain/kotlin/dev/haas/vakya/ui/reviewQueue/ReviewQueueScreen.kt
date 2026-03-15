@@ -71,7 +71,8 @@ fun ReviewQueueScreen(viewModel: ReviewQueueViewModel) {
                             allCalendars = calendars,
                             onApprove = { viewModel.approveEvent(it) },
                             onReject = { eventToReject = it },
-                            onEdit = { eventToEdit = it }
+                            onEdit = { eventToEdit = it },
+                            onDelete = { viewModel.deleteEvent(it) }
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
@@ -121,7 +122,8 @@ fun PendingEventCard(
     allCalendars: Map<String, List<dev.haas.vakya.data.google.CalendarEntry>>,
     onApprove: (PendingEvent) -> Unit,
     onReject: (PendingEvent) -> Unit,
-    onEdit: (PendingEvent) -> Unit
+    onEdit: (PendingEvent) -> Unit,
+    onDelete: (PendingEvent) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -192,8 +194,11 @@ fun PendingEventCard(
                 IconButton(onClick = { onEdit(event) }) {
                     Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary)
                 }
+                IconButton(onClick = { onDelete(event) }) {
+                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                }
                 IconButton(onClick = { onReject(event) }) {
-                    Icon(Icons.Default.Close, contentDescription = "Reject", tint = MaterialTheme.colorScheme.error)
+                    Icon(Icons.Default.Close, contentDescription = "Reject", tint = Color(0xFFFFA726))
                 }
                 IconButton(onClick = { onApprove(event) }) {
                     Icon(Icons.Default.Check, contentDescription = "Approve", tint = Color(0xFF4CAF50))

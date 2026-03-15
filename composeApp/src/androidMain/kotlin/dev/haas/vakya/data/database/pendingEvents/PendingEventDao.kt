@@ -23,4 +23,7 @@ interface PendingEventDao {
 
     @Query("SELECT * FROM pending_events WHERE id = :id")
     suspend fun getEventById(id: Long): PendingEvent?
+
+    @androidx.room.Delete
+    suspend fun deleteEvent(event: PendingEvent)
 }

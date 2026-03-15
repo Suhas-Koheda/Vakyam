@@ -94,4 +94,10 @@ class ReviewQueueViewModel(
             repository.updateEvent(event)
         }
     }
+
+    fun deleteEvent(event: PendingEvent) {
+        viewModelScope.launch {
+            repository.deleteEvent(event)
+        }
+    }
 }
