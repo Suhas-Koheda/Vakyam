@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.haas.vakya.data.database.pendingEvents.PendingEvent
+import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
@@ -160,6 +161,7 @@ fun PendingEventCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditEventDialog(
     event: PendingEvent,
@@ -167,31 +169,107 @@ fun EditEventDialog(
     onSave: (PendingEvent) -> Unit
 ) {
     var title by remember { mutableStateOf(event.title) }
-    var time by remember { mutableStateOf(event.startTime) }
+    var description by remember { mutableStateOf(event.description ?: "") }
+    
+    val initialDateTime = remember(event.startTime) {
+        try {
+            ZonedDateTime.parse(event.startTime)
+        } catch (e: Exception) {
+            ZonedDateTime.now()
+        }
+    }
+    
+    var selectedDate by remember { mutableStateOf(initialDateTime.toLocalDate()) }
+    var selectedTime by remember { mutableStateOf(initialDateTime.toLocalTime()) }
+    
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = selectedDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let {
+                        selectedDate = java.time.Instant.ofEpochMilli(it)
+                            .atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+                    }
+                    showDatePicker = false
+                }) { Text("OK") }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+
+    if (showTimePicker) {
+        val timePickerState = rememberTimePickerState(
+            initialHour = selectedTime.hour,
+            initialMinute = selectedTime.minute
+        )
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    selectedTime = java.time.LocalTime.of(timePickerState.hour, timePickerState.minute)
+                    showTimePicker = false
+                }) { Text("OK") }
+            },
+            title = { Text("Select Time") },
+            text = { TimePicker(state = timePickerState) }
+        )
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Edit Event") },
+        title = { Text("Edit Event", fontWeight = FontWeight.Bold) },
         text = {
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
                     label = { Text("Title") },
                     modifier = Modifier.fillMaxWidth()
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                
                 OutlinedTextField(
-                    value = time,
-                    onValueChange = { time = it },
-                    label = { Text("Time (ISO string)") },
-                    modifier = Modifier.fillMaxWidth()
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Description") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2
                 )
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedCard(
+                        onClick = { showDatePicker = true },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("Date", style = MaterialTheme.typography.labelSmall)
+                            Text(selectedDate.format(DateTimeFormatter.ofPattern("MMM dd, yyyy")), style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                    OutlinedCard(
+                        onClick = { showTimePicker = true },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("Time", style = MaterialTheme.typography.labelSmall)
+                            Text(selectedTime.format(DateTimeFormatter.ofPattern("hh:mm a")), style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
             TextButton(onClick = {
-                onSave(event.copy(title = title, startTime = time))
+                val newZonedDateTime = ZonedDateTime.of(selectedDate, selectedTime, ZoneId.systemDefault())
+                val newIsoString = newZonedDateTime.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+                onSave(event.copy(title = title, description = description, startTime = newIsoString))
             }) {
                 Text("Save")
             }
@@ -203,3 +281,6 @@ fun EditEventDialog(
         }
     )
 }
+
+private fun ZonedDateTime.toLocalDate(): java.time.LocalDate = this.toLocalDate()
+private fun ZonedDateTime.toLocalTime(): java.time.LocalTime = this.toLocalTime()

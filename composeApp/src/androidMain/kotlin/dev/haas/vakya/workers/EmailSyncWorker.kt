@@ -24,10 +24,8 @@ class EmailSyncWorker(
     override suspend fun doWork(): Result {
         Log.d(TAG, "Starting sync worker...")
 
-        val db = Room.databaseBuilder(
-            applicationContext,
-            VakyaDatabase::class.java, "vakya-db"
-        ).build()
+        val db = dev.haas.vakya.AppContextHolder.database
+        val notificationManager = dev.haas.vakya.notifications.VakyaNotificationManager(applicationContext)
 
         val retrofit = Retrofit.Builder()
             .baseUrl("https://www.googleapis.com/")
@@ -43,20 +41,24 @@ class EmailSyncWorker(
 
         val sourceEmail = db.appSettingDao().getSetting("gmail_source")?.value
         val destEmail = db.appSettingDao().getSetting("calendar_dest")?.value
+        
+        // Load confidence threshold from settings
+        val confidenceThreshold = db.appSettingDao().getSetting(dev.haas.vakya.ui.viewmodel.SettingsViewModel.KEY_CONFIDENCE)
+            ?.value?.toFloatOrNull() ?: 0.7f
 
         if (sourceEmail != null && destEmail != null) {
             val sourceAccount = db.accountDao().getAccountByEmail(sourceEmail)
             val destAccount = db.accountDao().getAccountByEmail(destEmail)
 
             if (sourceAccount?.accessToken != null && destAccount?.accessToken != null) {
-                syncBetweenAccounts(sourceAccount, destAccount, repository, parser, decisionLayer, db)
+                syncBetweenAccounts(sourceAccount, destAccount, repository, parser, decisionLayer, db, notificationManager, confidenceThreshold)
             }
         } else {
             // Fallback: process all enabled accounts (original behavior)
             val accounts = db.accountDao().getAllAccountsList()
             for (account in accounts) {
                 if (!account.isGmailEnabled || account.accessToken == null) continue
-                syncBetweenAccounts(account, account, repository, parser, decisionLayer, db)
+                syncBetweenAccounts(account, account, repository, parser, decisionLayer, db, notificationManager, confidenceThreshold)
             }
         }
 
@@ -69,18 +71,25 @@ class EmailSyncWorker(
         repository: GoogleRepository,
         parser: GemmaParser,
         decisionLayer: AgentDecisionLayer,
-        db: VakyaDatabase
+        db: VakyaDatabase,
+        notificationManager: dev.haas.vakya.notifications.VakyaNotificationManager,
+        confidenceThreshold: Float
     ) {
+        var emailsProcessed = 0
+        var eventsExtracted = 0
+        var eventsQueued = 0
+        
         try {
             val unreadEmails = repository.getUnreadEmails(source.email, source.accessToken!!)
             Log.d(TAG, "Found ${unreadEmails.size} unread emails for ${source.email}")
 
             for (email in unreadEmails) {
-                val extracted = parser.parseEmail(email.subject, email.snippet)
-                var actionResult = "No extraction"
+                emailsProcessed++
+                val extracted = parser.parseEmail(email.subject, email.body) // Using body instead of snippet
                 if (extracted != null) {
+                    eventsExtracted++
                     val calendarId = dest.targetCalendarId ?: "primary"
-                    val resultConfig = decisionLayer.decideAndAct(dest.email, dest.accessToken!!, calendarId, extracted)
+                    val resultConfig = decisionLayer.decideAndAct(dest.email, dest.accessToken!!, calendarId, extracted, confidenceThreshold)
                     val actionResult = resultConfig.actionMessage
                     Log.d(TAG, "Action for ${email.id} (Source: ${source.email}, Dest: ${dest.email}): $actionResult")
 
@@ -93,6 +102,7 @@ class EmailSyncWorker(
                     )
 
                     if (actionResult.contains("Queued event", ignoreCase = true)) {
+                        eventsQueued++
                         db.pendingEventDao().insertEvent(
                             dev.haas.vakya.data.database.pendingEvents.PendingEvent(
                                 emailId = email.id,
@@ -105,12 +115,30 @@ class EmailSyncWorker(
                                 accountId = dest.email
                             )
                         )
+                        notificationManager.notifyNewPendingEvent(extracted.title)
                     }
                 }
                 repository.markEmailProcessed(email.id, source.email)
             }
+            
+            // Log final summary
+            db.aiActionLogDao().insertLog(
+                dev.haas.vakya.data.database.AiActionLogEntity(
+                    logType = "SYSTEM",
+                    subject = "Sync Summary: ${source.email}",
+                    actionSummary = "Processed $emailsProcessed emails, extracted $eventsExtracted events, queued $eventsQueued."
+                )
+            )
+            
         } catch (e: Exception) {
             Log.e(TAG, "Error syncing from ${source.email} to ${dest.email}", e)
+            db.aiActionLogDao().insertLog(
+                dev.haas.vakya.data.database.AiActionLogEntity(
+                    logType = "ERROR",
+                    subject = "Sync Error: ${source.email}",
+                    actionSummary = e.message ?: "Unknown error"
+                )
+            )
         }
     }
 

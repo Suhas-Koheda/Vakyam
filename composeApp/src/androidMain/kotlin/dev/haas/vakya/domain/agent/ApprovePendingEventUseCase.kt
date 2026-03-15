@@ -16,7 +16,8 @@ class ApprovePendingEventUseCase(
     private val calendarApi: CalendarApi,
     private val deduplicationService: CalendarDeduplicationService,
     private val aiActionLogDao: AiActionLogDao,
-    private val calendarEventDao: CalendarEventDao
+    private val calendarEventDao: CalendarEventDao,
+    private val notificationManager: dev.haas.vakya.notifications.VakyaNotificationManager? = null
 ) {
     suspend fun execute(event: PendingEvent) {
         val account = accountDao.getAccountByEmail(event.accountId)
@@ -65,6 +66,7 @@ class ApprovePendingEventUseCase(
                     status = "ADDED"
                 )
             )
+            notificationManager?.notifyEventApproved(event.title)
         } catch (e: Exception) {
             logAction(event.emailId, event.title, "Error creating event: ${e.localizedMessage}")
         }

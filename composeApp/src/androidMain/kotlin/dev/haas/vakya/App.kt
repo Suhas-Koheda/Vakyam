@@ -36,7 +36,7 @@ import dev.haas.vakya.ui.theme.VakyaTheme
 
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
-
+    object Loading : Screen("loading", "Loading", Icons.Default.Refresh)
     object Dashboard : Screen("dashboard", "Dashboard", Icons.Default.Dashboard)
     object Review : Screen("review", "Review", Icons.Default.PlaylistAddCheck)
     object Debug : Screen("debug", "Debug", Icons.Default.BugReport)
@@ -65,16 +65,22 @@ fun App() {
     }
     val calendarApi = remember { retrofit.create(CalendarApi::class.java) }
 
+    val gemmaParser = remember { dev.haas.vakya.ai.GemmaParser() }
+    val weeklySummaryUseCase = remember { dev.haas.vakya.domain.ai.WeeklySummaryUseCase(db.calendarEventDao(), gemmaParser) }
+
     val dashboardRepository = remember { DashboardRepository(db.calendarEventDao(), db.aiActionLogDao()) }
     val settingsRepository = remember { SettingsRepository(db.accountDao(), db.appSettingDao(), db.aiActionLogDao(), calendarApi) }
     val pendingEventRepository = remember { dev.haas.vakya.data.repository.PendingEventRepository(db.pendingEventDao()) }
 
-    val dashboardViewModel = remember { DashboardViewModel(dashboardRepository) }
+    val startupViewModel = remember { dev.haas.vakya.ui.viewmodel.StartupViewModel(db, context) }
+    val dashboardViewModel = remember { DashboardViewModel(dashboardRepository, weeklySummaryUseCase) }
     val settingsViewModel = remember { SettingsViewModel(settingsRepository) }
+    
     val reviewQueueViewModel = remember { 
+        val notificationManager = dev.haas.vakya.notifications.VakyaNotificationManager(context)
         val deduplicationService = dev.haas.vakya.domain.deduplication.CalendarDeduplicationService(calendarApi)
         val approveUseCase = dev.haas.vakya.domain.agent.ApprovePendingEventUseCase(
-            db.accountDao(), calendarApi, deduplicationService, db.aiActionLogDao(), db.calendarEventDao()
+            db.accountDao(), calendarApi, deduplicationService, db.aiActionLogDao(), db.calendarEventDao(), notificationManager
         )
         dev.haas.vakya.ui.reviewQueue.ReviewQueueViewModel(
             pendingEventRepository,
@@ -82,27 +88,36 @@ fun App() {
         ) 
     }
 
-    var currentScreen by remember { mutableStateOf<Screen>(Screen.Dashboard) }
+    var currentScreen by remember { mutableStateOf<Screen>(Screen.Loading) }
 
     VakyaTheme {
         Surface {
             Scaffold(
             bottomBar = {
-                NavigationBar {
-                    val items = listOf(Screen.Dashboard, Screen.Review, Screen.Debug, Screen.Settings)
-                    items.forEach { screen ->
-                        NavigationBarItem(
-                            icon = { Icon(screen.icon, contentDescription = screen.title) },
-                            label = { Text(screen.title) },
-                            selected = currentScreen == screen,
-                            onClick = { currentScreen = screen }
-                        )
+                if (currentScreen != Screen.Loading) {
+                    NavigationBar {
+                        val items = listOf(Screen.Dashboard, Screen.Review, Screen.Debug, Screen.Settings)
+                        items.forEach { screen ->
+                            NavigationBarItem(
+                                icon = { Icon(screen.icon, contentDescription = screen.title) },
+                                label = { Text(screen.title) },
+                                selected = currentScreen == screen,
+                                onClick = { currentScreen = screen }
+                            )
+                        }
                     }
                 }
             }
         ) { padding ->
             Box(modifier = Modifier.padding(padding)) {
                 when (currentScreen) {
+                    Screen.Loading -> {
+                        dev.haas.vakya.ui.loading.LoadingScreen(
+                            viewModel = startupViewModel,
+                            onNavigateToDashboard = { currentScreen = Screen.Dashboard },
+                            onNavigateToSettings = { currentScreen = Screen.Settings }
+                        )
+                    }
                     Screen.Dashboard -> {
                         DashboardScreen(
                             viewModel = dashboardViewModel,

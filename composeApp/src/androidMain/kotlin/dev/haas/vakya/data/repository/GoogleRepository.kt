@@ -25,6 +25,9 @@ class GoogleRepository(
                 val subject = fullMsg.payload.headers.find { it.name == "Subject" }?.value ?: "(No Subject)"
                 val from = fullMsg.payload.headers.find { it.name == "From" }?.value ?: "Unknown"
                 
+                // Extract Body
+                val bodyText = extractBody(fullMsg) ?: fullMsg.snippet
+                
                 messages.add(
                     EmailMessage(
                         id = fullMsg.id,
@@ -32,7 +35,7 @@ class GoogleRepository(
                         subject = subject,
                         sender = from,
                         snippet = fullMsg.snippet,
-                        body = fullMsg.snippet, // Simplified: body extraction from parts can be complex
+                        body = bodyText,
                         timestamp = System.currentTimeMillis(),
                         accountEmail = accountEmail
                     )
@@ -40,6 +43,36 @@ class GoogleRepository(
             }
         }
         return messages
+    }
+
+    private fun extractBody(message: dev.haas.vakya.data.google.GmailMessageResponse): String? {
+        // Try to find text/plain part
+        val parts = message.payload.parts
+        if (parts != null) {
+            val plainTextPart = parts.find { it.mimeType == "text/plain" }
+            if (plainTextPart?.body?.data != null) {
+                return decodeBase64(plainTextPart.body.data)
+            }
+        }
+        
+        // Fallback to top-level body if parts is null
+        if (message.payload.body?.data != null) {
+            return decodeBase64(message.payload.body.data)
+        }
+        
+        return null
+    }
+
+    private fun decodeBase64(base64Data: String): String {
+        return try {
+            val decodedBytes = android.util.Base64.decode(
+                base64Data, 
+                android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP
+            )
+            String(decodedBytes, Charsets.UTF_8)
+        } catch (e: Exception) {
+            ""
+        }
     }
 
     suspend fun markEmailProcessed(emailId: String, accountEmail: String) {

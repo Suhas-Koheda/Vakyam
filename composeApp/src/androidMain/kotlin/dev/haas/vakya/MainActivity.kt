@@ -18,6 +18,7 @@ class MainActivity : ComponentActivity() {
         AppContextHolder.initialize(this)
 
         scheduleEmailSync()
+        dev.haas.vakya.widget.VakyaWidgetWorker.enqueue(this)
 
         setContent {
             App()

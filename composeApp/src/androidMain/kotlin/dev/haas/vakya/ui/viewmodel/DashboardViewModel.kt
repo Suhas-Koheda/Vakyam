@@ -12,11 +12,14 @@ data class DashboardUiState(
     val todayEvents: List<CalendarEventEntity> = emptyList(),
     val upcomingEvents: List<CalendarEventEntity> = emptyList(),
     val recentActions: List<AiActionLogEntity> = emptyList(),
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val weeklySummary: String? = null,
+    val isSummaryLoading: Boolean = false
 )
 
 class DashboardViewModel(
-    private val repository: DashboardRepository
+    private val repository: DashboardRepository,
+    private val weeklySummaryUseCase: dev.haas.vakya.domain.ai.WeeklySummaryUseCase? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
@@ -57,6 +60,19 @@ class DashboardViewModel(
         viewModelScope.launch {
             repository.deleteEvent(event)
         }
+    }
+
+    fun generateWeeklySummary() {
+        val useCase = weeklySummaryUseCase ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSummaryLoading = true) }
+            val summary = useCase.generateWeeklySummary()
+            _uiState.update { it.copy(weeklySummary = summary, isSummaryLoading = false) }
+        }
+    }
+
+    fun dismissSummary() {
+        _uiState.update { it.copy(weeklySummary = null) }
     }
 
     fun clearLogs() {

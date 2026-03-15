@@ -17,12 +17,13 @@ class AgentDecisionLayer(
         accountEmail: String,
         accessToken: String,
         calendarId: String,
-        extracted: ExtractedEvent
+        extracted: ExtractedEvent,
+        confidenceThreshold: Float = 0.7f
     ): ResultConfig {
         val authHeader = "Bearer $accessToken"
         
-        if (extracted.type == "ignore" || extracted.confidence < 0.7) {
-            return ResultConfig("Ignored: Low confidence or irrelevant type.", null, "", "")
+        if (extracted.type == "ignore" || extracted.confidence < confidenceThreshold) {
+            return ResultConfig("Ignored: Low confidence (${extracted.confidence}) or irrelevant type.", null, "", "")
         }
 
         // Tool: list_calendar_events

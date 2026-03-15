@@ -31,6 +31,11 @@ kotlin {
             // Room
             implementation(libs.androidx.room.runtime)
             implementation(libs.androidx.room.ktx)
+
+            // Glance Widget
+            implementation(libs.androidx.glance)
+            implementation(libs.androidx.glance.appwidget)
+            implementation(libs.androidx.glance.material3)
         }
 
         commonMain.dependencies {

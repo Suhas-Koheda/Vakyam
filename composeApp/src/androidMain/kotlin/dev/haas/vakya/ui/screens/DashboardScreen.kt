@@ -29,6 +29,19 @@ fun DashboardScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    if (uiState.weeklySummary != null) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissSummary() },
+            title = { Text("Weekly Summary", fontWeight = FontWeight.Bold) },
+            text = { Text(uiState.weeklySummary ?: "") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.dismissSummary() }) {
+                    Text("Close")
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -39,6 +52,19 @@ fun DashboardScreen(
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { viewModel.generateWeeklySummary() },
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            ) {
+                if (uiState.isSummaryLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                } else {
+                    Icon(Icons.Default.AutoAwesome, contentDescription = "Summarize Week")
+                }
+            }
         }
     ) { padding ->
         LazyColumn(
@@ -49,6 +75,29 @@ fun DashboardScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Summary CTA Item
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
+                    onClick = { viewModel.generateWeeklySummary() }
+                ) {
+                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Summarize, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Your Week at a Glance", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Text("Get an AI summary of your upcoming events.", style = MaterialTheme.typography.bodySmall)
+                        }
+                        if (uiState.isSummaryLoading) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        } else {
+                            Icon(Icons.Default.ChevronRight, contentDescription = null)
+                        }
+                    }
+                }
+            }
+
             // TODAY Section
             item {
                 SectionHeader("TODAY", MaterialTheme.colorScheme.error)
