@@ -1,8 +1,11 @@
 package dev.haas.vakya.ui.debug
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -31,7 +34,7 @@ fun DebugScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(androidx.compose.material.icons.Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -48,7 +51,7 @@ fun DebugScreen(
             ) {
                 Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
                     Icon(
-                        androidx.compose.material.icons.Icons.Default.History,
+                        Icons.Default.History,
                         contentDescription = null,
                         modifier = Modifier.size(64.dp),
                         tint = MaterialTheme.colorScheme.outlineVariant
@@ -100,7 +103,7 @@ fun ActionLogItem(log: AiActionLogEntity) {
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Icon(
-                    androidx.compose.material.icons.Icons.Default.AutoAwesome,
+                    Icons.Default.AutoAwesome,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.primary
@@ -137,7 +140,7 @@ fun ActionLogItem(log: AiActionLogEntity) {
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
             ) {
                 Icon(
-                    androidx.compose.material.icons.Icons.Default.AccessTime,
+                    Icons.Default.AccessTime,
                     contentDescription = null,
                     modifier = Modifier.size(14.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
