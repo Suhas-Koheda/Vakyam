@@ -8,14 +8,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import dev.haas.vakya.data.database.ActionLogEntity
+import dev.haas.vakya.data.database.AiActionLogEntity
 import kotlinx.coroutines.flow.Flow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DebugScreen(
 
-    logsFlow: Flow<List<ActionLogEntity>>,
+    logsFlow: Flow<List<AiActionLogEntity>>,
     onBack: () -> Unit
 ) {
     val logs by logsFlow.collectAsState(initial = emptyList())
@@ -50,7 +50,8 @@ fun DebugScreen(
 }
 
 @Composable
-fun ActionLogItem(log: ActionLogEntity) {
+fun ActionLogItem(log: AiActionLogEntity) {
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -58,10 +59,11 @@ fun ActionLogItem(log: ActionLogEntity) {
         Column(modifier = Modifier.padding(12.dp)) {
             Text(text = log.subject, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(4.dp))
-            Text(text = "AI output: ${log.aiOutput}", style = MaterialTheme.typography.bodySmall)
+            Text(text = "AI output: ${log.actionSummary}", style = MaterialTheme.typography.bodySmall)
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Action: ${log.actionTaken}",
+                text = "Summary: ${log.actionSummary}",
+
                 color = MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.bodyMedium
             )

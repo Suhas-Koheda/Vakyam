@@ -23,6 +23,22 @@ import vakya.composeapp.generated.resources.*
 import vakya.composeapp.generated.resources.Res
 import vakya.composeapp.generated.resources.jetbrainsmono_regular
 import vakya.composeapp.generated.resources.jetbrainsmono_bold
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.ui.graphics.vector.ImageVector
+import dev.haas.vakya.data.repository.DashboardRepository
+import dev.haas.vakya.data.repository.SettingsRepository
+import dev.haas.vakya.ui.screens.DashboardScreen
+import dev.haas.vakya.ui.screens.SettingsScreen
+import dev.haas.vakya.ui.viewmodel.DashboardViewModel
+import dev.haas.vakya.ui.viewmodel.SettingsViewModel
+import retrofit2.Retrofit
+import retrofit2.converter.moshi.MoshiConverterFactory
+import dev.haas.vakya.data.google.CalendarApi
+
 
 @Composable
 fun VakyaTypography(): Typography {
@@ -50,18 +66,8 @@ fun VakyaTypography(): Typography {
     )
 }
 
-import androidx.compose.ui.graphics.vector.ImageVector
-import dev.haas.vakya.data.repository.DashboardRepository
-import dev.haas.vakya.data.repository.SettingsRepository
-import dev.haas.vakya.ui.screens.DashboardScreen
-import dev.haas.vakya.ui.screens.SettingsScreen
-import dev.haas.vakya.ui.viewmodel.DashboardViewModel
-import dev.haas.vakya.ui.viewmodel.SettingsViewModel
-import retrofit2.Retrofit
-import retrofit2.converter.moshi.MoshiConverterFactory
-import dev.haas.vakya.data.google.CalendarApi
-
 sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
+
     object Dashboard : Screen("dashboard", "Dashboard", Icons.Default.Dashboard)
     object Debug : Screen("debug", "Debug", Icons.Default.BugReport)
     object Settings : Screen("settings", "Settings", Icons.Default.Settings)

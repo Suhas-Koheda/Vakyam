@@ -57,7 +57,9 @@ fun SettingsScreen(
                 }
             }
 
+
             // Agent Sync Mapping
+
             SettingsSection("Agent Sync Mapping", Icons.Default.SwapHoriz) {
                 DropdownSetting(
                     label = "Gmail Source",
@@ -219,8 +221,8 @@ fun ToggleSetting(label: String, checked: Boolean, onCheckedChange: (Boolean) ->
 fun DropdownSetting(label: String, options: List<String>, selected: String, onSelected: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(label, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
         ExposedDropdownMenuBox(
             expanded = expanded,
             onExpandedChange = { expanded = !expanded }
@@ -229,9 +231,10 @@ fun DropdownSetting(label: String, options: List<String>, selected: String, onSe
                 value = selected,
                 onValueChange = {},
                 readOnly = true,
-                modifier = Modifier.menuAnchor().width(150.dp),
+                modifier = Modifier.menuAnchor().fillMaxWidth(),
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                shape = MaterialTheme.shapes.medium
             )
             ExposedDropdownMenu(
                 expanded = expanded,
@@ -239,7 +242,13 @@ fun DropdownSetting(label: String, options: List<String>, selected: String, onSe
             ) {
                 options.forEach { option ->
                     DropdownMenuItem(
-                        text = { Text(option) },
+                        text = { 
+                            Text(
+                                text = option,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(horizontal = 8.dp)
+                            ) 
+                        },
                         onClick = {
                             onSelected(option)
                             expanded = false
@@ -250,3 +259,4 @@ fun DropdownSetting(label: String, options: List<String>, selected: String, onSe
         }
     }
 }
+
