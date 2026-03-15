@@ -79,12 +79,7 @@ fun App() {
     val authManager = remember { GoogleAuthManager(context) }
     val scope = rememberCoroutineScope()
 
-    val db = remember {
-        androidx.room.Room.databaseBuilder(
-            context,
-            dev.haas.vakya.data.database.VakyaDatabase::class.java, "vakya-db"
-        ).fallbackToDestructiveMigration().build()
-    }
+    val db = AppContextHolder.database
 
     val retrofit = remember {
         Retrofit.Builder()

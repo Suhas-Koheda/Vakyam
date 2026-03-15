@@ -11,6 +11,10 @@ import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import dev.haas.vakya.data.database.AccountEntity
+import com.google.android.gms.auth.GoogleAuthUtil
 
 
 class GoogleAuthManager(private val context: Context) {
@@ -89,32 +93,42 @@ class GoogleAuthManager(private val context: Context) {
         }
     }
 
-    private fun handleSignIn(result: GetCredentialResponse) {
+    private suspend fun handleSignIn(result: GetCredentialResponse) {
         val credential = result.credential
         if (credential is GoogleIdTokenCredential) {
             val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+            val email = googleIdTokenCredential.id // Note: For Credential Manager, 'id' is often the email
+            
             val userData = UserData(
                 userId = googleIdTokenCredential.id,
-                email = googleIdTokenCredential.id, // Usually id is the email
+                email = email,
                 displayName = googleIdTokenCredential.displayName,
                 profilePictureUrl = googleIdTokenCredential.profilePictureUri?.toString()
             )
             _userState.value = userData
             saveUserState(userData)
 
-            // Save to Room for Agent
-            kotlinx.coroutines.MainScope().launch {
-                val db = androidx.room.Room.databaseBuilder(
-                    context,
-                    dev.haas.vakya.data.database.VakyaDatabase::class.java, "vakya-db"
-                ).build()
+            // Attempt to get a real access token for APIs
+            val accessToken = withContext(Dispatchers.IO) {
+                try {
+                    val scopes = "oauth2:https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events"
+                    GoogleAuthUtil.getToken(context, email, scopes)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    null
+                }
+            }
+
+            // Save to Room using the singleton database
+            withContext(Dispatchers.IO) {
+                val db = AppContextHolder.database
                 db.accountDao().insertAccount(
-                    dev.haas.vakya.data.database.AccountEntity(
-                        email = userData.email,
+                    AccountEntity(
+                        email = email,
                         displayName = userData.displayName,
                         isGmailEnabled = true,
                         targetCalendarId = "primary",
-                        accessToken = googleIdTokenCredential.idToken // Using ID token as placeholder or if it's actually an access token (usually Credential Manager gives ID token, but we might need to swap for access token later)
+                        accessToken = accessToken ?: googleIdTokenCredential.idToken 
                     )
                 )
             }

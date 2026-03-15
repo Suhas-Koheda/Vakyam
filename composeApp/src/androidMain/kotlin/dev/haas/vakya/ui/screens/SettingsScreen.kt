@@ -91,15 +91,60 @@ fun SettingsScreen(
                 )
             }
 
-            // AI Behavior Settings
             SettingsSection("AI Behavior", Icons.Default.AutoAwesome) {
-                Text("Confidence Threshold: ${uiState.confidenceThreshold}", style = MaterialTheme.typography.bodyMedium)
-                Slider(
-                    value = uiState.confidenceThreshold,
-                    onValueChange = { viewModel.setSetting(SettingsViewModel.KEY_CONFIDENCE, it.toString()) },
-                    valueRange = 0.5f..0.9f,
-                    steps = 3
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Confidence Threshold",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Surface(
+                            shape = MaterialTheme.shapes.small,
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            modifier = Modifier.padding(start = 8.dp)
+                        ) {
+                            Text(
+                                text = "${(uiState.confidenceThreshold * 100).toInt()}%",
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    Slider(
+                        value = uiState.confidenceThreshold,
+                        onValueChange = { viewModel.setSetting(SettingsViewModel.KEY_CONFIDENCE, it.toString()) },
+                        valueRange = 0.5f..0.9f,
+                        steps = 3,
+                        colors = SliderDefaults.colors(
+                            thumbColor = MaterialTheme.colorScheme.primary,
+                            activeTrackColor = MaterialTheme.colorScheme.primary,
+                            inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    )
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Balanced", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Strict", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
                 
                 ToggleSetting(
                     label = "Convert deadlines into reminders",
