@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -32,6 +34,7 @@ fun ReviewQueueScreen(viewModel: ReviewQueueViewModel) {
 
     var eventToReject by remember { mutableStateOf<PendingEvent?>(null) }
     var eventToEdit by remember { mutableStateOf<PendingEvent?>(null) }
+    var eventToViewEmail by remember { mutableStateOf<PendingEvent?>(null) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
@@ -73,7 +76,8 @@ fun ReviewQueueScreen(viewModel: ReviewQueueViewModel) {
                             onApprove = { viewModel.approveEvent(it) },
                             onReject = { eventToReject = it },
                             onEdit = { eventToEdit = it },
-                            onDelete = { viewModel.deleteEvent(it) }
+                            onDelete = { viewModel.deleteEvent(it) },
+                            onViewEmail = { eventToViewEmail = it }
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
@@ -114,6 +118,26 @@ fun ReviewQueueScreen(viewModel: ReviewQueueViewModel) {
             }
         )
     }
+
+    if (eventToViewEmail != null) {
+        AlertDialog(
+            onDismissRequest = { eventToViewEmail = null },
+            title = { Text("Original Email Content") },
+            text = {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    Text(
+                        text = eventToViewEmail?.originalBody ?: "No content available",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { eventToViewEmail = null }) {
+                    Text("Close")
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -124,7 +148,8 @@ fun PendingEventCard(
     onApprove: (PendingEvent) -> Unit,
     onReject: (PendingEvent) -> Unit,
     onEdit: (PendingEvent) -> Unit,
-    onDelete: (PendingEvent) -> Unit
+    onDelete: (PendingEvent) -> Unit,
+    onViewEmail: (PendingEvent) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -172,10 +197,22 @@ fun PendingEventCard(
                 style = MaterialTheme.typography.bodyMedium
             )
             Text(
-                text = "Source: ${event.emailId}",
+                text = "Source: ${event.sender ?: event.emailId}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+
+            if (event.originalBody != null) {
+                Text(
+                    text = "View Original Email",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .clickable { onViewEmail(event) }
+                        .padding(vertical = 4.dp)
+                )
+            }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
             

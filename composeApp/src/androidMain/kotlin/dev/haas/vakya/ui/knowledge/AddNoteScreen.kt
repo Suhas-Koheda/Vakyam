@@ -1,6 +1,9 @@
 package dev.haas.vakya.ui.knowledge
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.material.icons.Icons
@@ -56,7 +59,8 @@ fun AddNoteScreen(
             modifier = Modifier
                 .padding(padding)
                 .padding(16.dp)
-                .fillMaxSize(),
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             OutlinedTextField(
@@ -72,13 +76,13 @@ fun AddNoteScreen(
                 label = { Text("Content") },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
+                    .heightIn(min = 200.dp)
             )
 
             if (suggestedTags.isNotEmpty()) {
                 Text("AI Suggested Tags:", style = MaterialTheme.typography.labelMedium)
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     suggestedTags.forEach { tag ->

@@ -1,7 +1,9 @@
 package dev.haas.vakya.ui.knowledge
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -110,12 +112,17 @@ fun NoteCard(note: KnowledgeNoteEntity, onClick: () -> Unit) {
             )
             if (note.tags.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    note.tags.split(",").take(3).forEach { tag ->
-                        SuggestionChip(
-                            onClick = {},
-                            label = { Text(tag.trim(), style = MaterialTheme.typography.labelSmall) }
-                        )
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    note.tags.split(",").forEach { tag ->
+                        if (tag.isNotBlank()) {
+                            SuggestionChip(
+                                onClick = {},
+                                label = { Text(tag.trim(), style = MaterialTheme.typography.labelSmall) }
+                            )
+                        }
                     }
                 }
             }

@@ -25,5 +25,11 @@ class VakyaWidgetWorker(
                 request
             )
         }
+
+        fun refresh(context: Context) {
+            val request = OneTimeWorkRequestBuilder<VakyaWidgetWorker>()
+                .build()
+            WorkManager.getInstance(context).enqueue(request)
+        }
     }
 }

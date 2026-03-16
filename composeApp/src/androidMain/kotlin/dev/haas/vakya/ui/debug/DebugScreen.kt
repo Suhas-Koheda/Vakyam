@@ -11,6 +11,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -27,6 +29,10 @@ fun DebugScreen(
     onBack: () -> Unit
 ) {
     val logs by logsFlow.collectAsState(initial = emptyList())
+    var selectedFilter by remember { mutableStateOf("ALL") }
+    val filteredLogs = remember(logs, selectedFilter) {
+        if (selectedFilter == "ALL") logs else logs.filter { it.logType == selectedFilter }
+    }
 
     Scaffold(
         topBar = {
@@ -57,36 +63,56 @@ fun DebugScreen(
             )
         }
     ) { padding ->
-        if (logs.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentAlignment = androidx.compose.ui.Alignment.Center
+        Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+            // Filter Row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
-                    Icon(
-                        Icons.Default.History,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.outlineVariant
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        "No AI actions logged yet",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                listOf("ALL", "ACTION", "SYSTEM", "ERROR", "AUTH").forEach { type ->
+                    FilterChip(
+                        selected = selectedFilter == type,
+                        onClick = { selectedFilter = type },
+                        label = { Text(type) },
+                        leadingIcon = if (selectedFilter == type) {
+                            { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                        } else null
                     )
                 }
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .padding(padding)
-                    .fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                items(logs) { log ->
-                    ActionLogItem(log)
+
+            if (filteredLogs.isEmpty()) {
+                Box(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    contentAlignment = androidx.compose.ui.Alignment.Center
+                ) {
+                    Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Default.History,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.outlineVariant
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            "No matching logs",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(filteredLogs) { log ->
+                        ActionLogItem(log)
+                    }
                 }
             }
         }

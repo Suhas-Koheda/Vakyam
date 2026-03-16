@@ -102,6 +102,7 @@ class EmailSyncWorker(
                                 deadline = extracted.deadline,
                                 confidence = extracted.confidence.toFloat(),
                                 sender = email.sender,
+                                originalBody = email.body,
                                 accountId = dest.email,
                                 targetCalendarId = calendarId
                             )

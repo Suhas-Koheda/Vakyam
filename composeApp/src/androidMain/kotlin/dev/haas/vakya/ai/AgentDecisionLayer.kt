@@ -33,11 +33,16 @@ class AgentDecisionLayer(
                 val keywordMatch = extracted.title.contains(rule.keyword, ignoreCase = true)
                 val domain = sender?.substringAfterLast("@")
                 val domainMatch = rule.senderDomain == null || rule.senderDomain == domain
-                
                 if (keywordMatch && domainMatch) {
                     adjustedConfidence += rule.confidenceAdjustment
                 }
             }
+        }
+        
+        // Manual boost for critical event types
+        val criticalKeywords = listOf("bill", "payment", "due", "statement", "renewal", "appointment")
+        if (criticalKeywords.any { extracted.title.contains(it, ignoreCase = true) }) {
+            adjustedConfidence += 0.2f
         }
 
         if (extracted.type == "ignore" || adjustedConfidence < confidenceThreshold) {

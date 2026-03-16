@@ -8,17 +8,20 @@ import dev.haas.vakya.AppContextHolder
 import dev.haas.vakya.domain.models.ExtractedEvent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.File
 
 class GemmaParser {
     private val TAG = "GemmaParser"
-    private val MODEL_PATH = "/data/user/0/dev.haas.vakya/files/gemma.task"
+    private val MODEL_PATH by lazy { "/data/local/tmp/llm/gemma3-1b-it-int4.task" }
     
     private val moshi = Moshi.Builder()
         .addLast(KotlinJsonAdapterFactory())
         .build()
     private val adapter = moshi.adapter(ExtractedEvent::class.java)
 
+    private val mutex = Mutex()
     private var llmInference: LlmInference? = null
 
     private fun getOrCreateLlm(): LlmInference? {
@@ -30,10 +33,28 @@ class GemmaParser {
             return null
         }
 
+        // Validation: Check if file exists and has size
+        if (modelFile.length() < 1024 * 1024) { // Expecting at least 1MB for an LLM
+            Log.e(TAG, "Model file is too small or empty. Size: ${modelFile.length()}")
+            return null
+        }
+
+        // Log the first few bytes for debugging purposes
+        try {
+            val fis = java.io.FileInputStream(modelFile)
+            val header = ByteArray(4)
+            fis.read(header)
+            fis.close()
+            val hex = header.joinToString("") { "%02x".format(it) }
+            Log.d(TAG, "Model file header (first 4 bytes): $hex")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error reading model header", e)
+        }
+
         return try {
             val options = LlmInference.LlmInferenceOptions.builder()
                 .setModelPath(MODEL_PATH)
-                .setMaxTokens(2048) // Increased for more informative output
+                .setMaxTokens(2048)
                 .build()
 
             llmInference = LlmInference.createFromOptions(AppContextHolder.context, options)
@@ -76,8 +97,13 @@ Rules:
 * password reset
 * verification code
 * marketing or newsletter
-* automated system notification with no required action
+* automated system notification with no required action (e.g. login success, password changed)
 
+1.1. NEVER ignore emails about:
+* bill payments, due dates or credit card statements
+* subscription renewals
+* appointments or bookings
+Mark these as **task** or **reminder**.
 2. Type meanings:
 
 * **event** → meeting, class, scheduled call, webinar
@@ -151,9 +177,9 @@ ${safeBody.take(4000)}
         runInference(prompt) ?: "Error: Could not generate response."
     }
 
-    internal fun runInference(prompt: String): String? {
-        val llm = getOrCreateLlm() ?: return null
-        return try {
+    internal suspend fun runInference(prompt: String): String? = mutex.withLock {
+        val llm = getOrCreateLlm() ?: return@withLock null
+        return@withLock try {
             llm.generateResponse(prompt)
         } catch (e: Exception) {
             Log.e(TAG, "Inference error", e)

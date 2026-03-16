@@ -80,9 +80,24 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+    signingConfigs {
+        create("release") {
+            storeFile = file("vakya.keystore")
+            storePassword = "vakyapass"
+            keyAlias = "vakya"
+            keyPassword = "vakyapass"
+        }
+    }
+    
     buildTypes {
         getByName("release") {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
+        }
+        create("debugSignedRelease") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
         }
     }
     compileOptions {

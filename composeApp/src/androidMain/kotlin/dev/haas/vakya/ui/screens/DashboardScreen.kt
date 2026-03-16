@@ -1,7 +1,9 @@
 package dev.haas.vakya.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -119,26 +121,28 @@ fun DashboardScreen(
             // Quick Shortcuts
             item {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     ActionChip(
                         icon = Icons.Default.AddTask,
                         label = "Task",
-                        onClick = onNavigateToAddTask,
-                        modifier = Modifier.weight(1f)
+                        onClick = onNavigateToAddTask
                     )
                     ActionChip(
                         icon = Icons.Default.NoteAdd,
                         label = "Note",
-                        onClick = onNavigateToAddNote,
-                        modifier = Modifier.weight(1f)
+                        onClick = onNavigateToAddNote
                     )
                     ActionChip(
                         icon = Icons.Default.Search,
                         label = "Explore",
-                        onClick = onNavigateToKnowledge,
-                        modifier = Modifier.weight(1f)
+                        onClick = onNavigateToKnowledge
+                    )
+                    ActionChip(
+                        icon = Icons.Default.Settings,
+                        label = "Settings",
+                        onClick = { /* Add settings navigation if needed */ }
                     )
                 }
             }
@@ -146,11 +150,11 @@ fun DashboardScreen(
             // AI Insight Cards
             item {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), 
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 4.dp), 
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     InsightCard(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.width(180.dp),
                         onClick = { viewModel.generateDailyBriefing() },
                         icon = Icons.Default.WbSunny,
                         title = "Daily Briefing",
@@ -158,7 +162,7 @@ fun DashboardScreen(
                         color = Color(0xFFFFB300)
                     )
                     InsightCard(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.width(180.dp),
                         onClick = { viewModel.generateWeeklySummary() },
                         icon = Icons.Default.AutoAwesome,
                         title = "Weekly Insight",

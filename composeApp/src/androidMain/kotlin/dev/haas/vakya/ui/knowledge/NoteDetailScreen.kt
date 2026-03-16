@@ -1,7 +1,9 @@
 package dev.haas.vakya.ui.knowledge
 
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -156,16 +158,21 @@ fun NoteDetailScreen(
                         )
                         
                         if (currentNote.tags.isNotEmpty()) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
                                 currentNote.tags.split(",").forEach { tag ->
-                                    FilterChip(
-                                        selected = true,
-                                        onClick = {},
-                                        label = { Text(tag.trim()) },
-                                        colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = MaterialTheme.colorScheme.tertiaryContainer
+                                    if (tag.isNotBlank()) {
+                                        FilterChip(
+                                            selected = true,
+                                            onClick = {},
+                                            label = { Text(tag.trim()) },
+                                            colors = FilterChipDefaults.filterChipColors(
+                                                selectedContainerColor = MaterialTheme.colorScheme.tertiaryContainer
+                                            )
                                         )
-                                    )
+                                    }
                                 }
                             }
                         }

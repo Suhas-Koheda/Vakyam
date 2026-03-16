@@ -9,6 +9,8 @@ class KnowledgeRepository(
 ) {
     fun getAllNotes(): Flow<List<KnowledgeNoteEntity>> = knowledgeNoteDao.getAllNotes()
 
+    fun getArchivedNotes(): Flow<List<KnowledgeNoteEntity>> = knowledgeNoteDao.getArchivedNotes()
+
     fun getRecentNotes(limit: Int): Flow<List<KnowledgeNoteEntity>> = knowledgeNoteDao.getRecentNotes(limit)
 
     suspend fun getNoteById(id: Long): KnowledgeNoteEntity? = knowledgeNoteDao.getNoteById(id)
@@ -18,6 +20,8 @@ class KnowledgeRepository(
     suspend fun updateNote(note: KnowledgeNoteEntity) = knowledgeNoteDao.updateNote(note)
 
     suspend fun deleteNote(note: KnowledgeNoteEntity) = knowledgeNoteDao.deleteNote(note)
+
+    suspend fun archiveNote(id: Long) = knowledgeNoteDao.archiveNote(id)
 
     fun searchNotes(query: String): Flow<List<KnowledgeNoteEntity>> = knowledgeNoteDao.searchNotes(query)
 }

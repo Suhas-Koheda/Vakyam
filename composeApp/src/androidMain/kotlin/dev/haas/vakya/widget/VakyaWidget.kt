@@ -22,9 +22,15 @@ import androidx.glance.action.actionStartActivity
 import dev.haas.vakya.MainActivity
 import dev.haas.vakya.ui.theme.*
 import androidx.glance.action.clickable
+import androidx.glance.appwidget.action.ActionCallback
+import androidx.glance.appwidget.action.actionRunCallback
+import androidx.glance.action.ActionParameters
+import androidx.glance.action.actionParametersOf
 
 
 import dev.haas.vakya.R
+
+import dev.haas.vakya.data.database.KnowledgeNoteEntity
 
 class VakyaWidget : GlanceAppWidget() {
 
@@ -35,15 +41,21 @@ class VakyaWidget : GlanceAppWidget() {
         
         val todayEvents = db.calendarEventDao().getTodayEventsList(now, endOfDay)
         val upcomingEvents = db.calendarEventDao().getUpcomingEventsList(endOfDay)
-            .take(5) // Just show next 5
+            .take(5)
+            
+        val recentNotes = db.knowledgeNoteDao().getRecentNotesList(3)
 
         provideContent {
-            VakyaWidgetContent(todayEvents, upcomingEvents)
+            VakyaWidgetContent(todayEvents, upcomingEvents, recentNotes)
         }
     }
 
     @Composable
-    private fun VakyaWidgetContent(today: List<CalendarEventEntity>, upcoming: List<CalendarEventEntity>) {
+    private fun VakyaWidgetContent(
+        today: List<CalendarEventEntity>, 
+        upcoming: List<CalendarEventEntity>,
+        recentNotes: List<KnowledgeNoteEntity>
+    ) {
         val backgroundColor = ColorProvider(R.color.widget_bg)
         val onBackgroundColor = ColorProvider(R.color.widget_on_bg)
         val secondaryTextColor = ColorProvider(R.color.widget_secondary_text)
@@ -122,6 +134,58 @@ class VakyaWidget : GlanceAppWidget() {
                         WidgetEventItem(event, onBackgroundColor, secondaryTextColor)
                     }
                 }
+
+                item {
+                    SectionDivider("KNOWLEDGE", accentColor)
+                }
+
+                if (recentNotes.isEmpty()) {
+                    item {
+                        EmptyItem("No notes yet", secondaryTextColor)
+                    }
+                } else {
+                    items(recentNotes) { note ->
+                        WidgetNoteItem(note, onBackgroundColor, secondaryTextColor)
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun WidgetNoteItem(note: KnowledgeNoteEntity, primaryColor: ColorProvider, secondaryColor: ColorProvider) {
+        Row(
+            modifier = GlanceModifier.fillMaxWidth().padding(vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val noteColor = ColorProvider(R.color.widget_accent)
+            // Larger Clickable Square for Checkbox functionality
+            Box(
+                modifier = GlanceModifier
+                    .size(28.dp)
+                    .clickable(actionRunCallback<ToggleNoteAction>(actionParametersOf(ToggleNoteAction.noteIdKey to note.id))),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "□", 
+                    style = TextStyle(color = noteColor, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                )
+            }
+            
+            Spacer(modifier = GlanceModifier.width(8.dp))
+            Column(modifier = GlanceModifier.defaultWeight().clickable(actionStartActivity<MainActivity>())) {
+                Text(
+                    text = note.title,
+                    style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Medium, color = primaryColor),
+                    maxLines = 1
+                )
+                if (note.summary != null) {
+                    Text(
+                        text = note.summary,
+                        style = TextStyle(fontSize = 11.sp, color = secondaryColor),
+                        maxLines = 1
+                    )
+                }
             }
         }
     }
@@ -143,19 +207,35 @@ class VakyaWidget : GlanceAppWidget() {
         val timeStr = LocalDateTime.ofInstant(Instant.ofEpochMilli(event.startTime), ZoneId.systemDefault())
             .format(DateTimeFormatter.ofPattern("hh:mm a"))
             
-        Row(modifier = GlanceModifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        Row(
+            modifier = GlanceModifier.fillMaxWidth().padding(vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             val bulletColor = ColorProvider(R.color.widget_bullet)
-            Text(text = "•", style = TextStyle(color = bulletColor))
-            Spacer(modifier = GlanceModifier.width(4.dp))
-            Column {
+            
+            // Larger Clickable Bullet (behaves like a checkbox to dismiss/complete)
+            Box(
+                modifier = GlanceModifier
+                    .size(28.dp)
+                    .clickable(actionRunCallback<ToggleEventAction>(actionParametersOf(ToggleEventAction.eventIdKey to event.id))),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "○", 
+                    style = TextStyle(color = bulletColor, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                )
+            }
+
+            Spacer(modifier = GlanceModifier.width(8.dp))
+            Column(modifier = GlanceModifier.defaultWeight().clickable(actionStartActivity<MainActivity>())) {
                 Text(
                     text = event.title,
-                    style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Medium, color = primaryColor),
+                    style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Medium, color = primaryColor),
                     maxLines = 1
                 )
                 Text(
                     text = timeStr,
-                    style = TextStyle(fontSize = 10.sp, color = secondaryColor)
+                    style = TextStyle(fontSize = 11.sp, color = secondaryColor)
                 )
             }
         }
@@ -168,5 +248,32 @@ class VakyaWidget : GlanceAppWidget() {
             style = TextStyle(fontSize = 11.sp, color = color),
             modifier = GlanceModifier.padding(start = 8.dp)
         )
+    }
+}
+
+class ToggleEventAction : ActionCallback {
+    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        val eventId = parameters[ToggleEventAction.eventIdKey] ?: return
+        AppContextHolder.database.calendarEventDao().markAsIgnored(eventId)
+        VakyaWidget().update(context, glanceId)
+    }
+    companion object {
+        val eventIdKey = ActionParameters.Key<Long>("eventId")
+    }
+}
+
+class ToggleNoteAction : ActionCallback {
+    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        val noteId = parameters[ToggleNoteAction.noteIdKey] ?: return
+        // For now, checking off a note from the widget will archive it (delete from recent view)
+        // In a real app we might update a 'isCompleted' flag.
+        val note = AppContextHolder.database.knowledgeNoteDao().getNoteById(noteId)
+        if (note != null) {
+            AppContextHolder.database.knowledgeNoteDao().deleteNote(note)
+        }
+        VakyaWidget().update(context, glanceId)
+    }
+    companion object {
+        val noteIdKey = ActionParameters.Key<Long>("noteId")
     }
 }

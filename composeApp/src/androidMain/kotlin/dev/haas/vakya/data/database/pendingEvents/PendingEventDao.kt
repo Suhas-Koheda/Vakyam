@@ -21,6 +21,9 @@ interface PendingEventDao {
     @Query("UPDATE pending_events SET status = :status WHERE id = :id")
     suspend fun updateStatus(id: Long, status: String)
 
+    @Query("UPDATE pending_events SET originalBody = NULL WHERE id = :id")
+    suspend fun clearBody(id: Long)
+
     @Query("SELECT * FROM pending_events WHERE id = :id")
     suspend fun getEventById(id: Long): PendingEvent?
 

@@ -31,6 +31,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import dev.haas.vakya.data.google.CalendarApi
 import dev.haas.vakya.ui.theme.VakyaTheme
+import kotlinx.coroutines.flow.map
 
 
 
@@ -100,9 +101,21 @@ fun App() {
                 if (currentScreen != Screen.Loading) {
                     NavigationBar {
                         val items = listOf(Screen.Dashboard, Screen.Review, Screen.Knowledge, Screen.Settings)
+                        val pendingCount by reviewQueueViewModel.pendingEvents.map { it.size }.collectAsState(0)
+                        
                         items.forEach { screen ->
                             NavigationBarItem(
-                                icon = { Icon(screen.icon, contentDescription = screen.title) },
+                                icon = { 
+                                    if (screen == Screen.Review && pendingCount > 0) {
+                                        BadgedBox(badge = {
+                                            Badge { Text(pendingCount.toString()) }
+                                        }) {
+                                            Icon(screen.icon, contentDescription = screen.title)
+                                        }
+                                    } else {
+                                        Icon(screen.icon, contentDescription = screen.title)
+                                    }
+                                },
                                 label = { Text(screen.title) },
                                 selected = currentScreen == screen,
                                 onClick = { currentScreen = screen }

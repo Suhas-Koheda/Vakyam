@@ -19,12 +19,14 @@ class PendingEventRepository(
         pendingEventDao.updateEvent(event)
     }
 
-    suspend fun approveEvent(id: Long) {
-        pendingEventDao.updateStatus(id, "approved")
-    }
-
     suspend fun rejectEvent(id: Long) {
         pendingEventDao.updateStatus(id, "rejected")
+        pendingEventDao.clearBody(id)
+    }
+
+    suspend fun approveEvent(id: Long) {
+        pendingEventDao.updateStatus(id, "approved")
+        pendingEventDao.clearBody(id)
     }
 
     suspend fun getEventById(id: Long): PendingEvent? {

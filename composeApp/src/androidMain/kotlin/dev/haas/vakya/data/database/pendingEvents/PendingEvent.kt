@@ -14,6 +14,7 @@ data class PendingEvent(
     val deadline: String?,
     val confidence: Float,
     val sender: String?, // The original sender of the email
+    val originalBody: String? = null, // The full email body
     val accountId: String, // Destination account email
     val targetCalendarId: String? = null, // Destination calendar ID
     val status: String = "pending", // pending, approved, rejected
